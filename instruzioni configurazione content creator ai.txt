@@ -101,3 +101,8 @@ crontab -e
 @reboot cd /home/ubuntu/stable-diffusion-webui && ./webui.sh --listen --api --port 7860 >> /home/ubuntu/webui.log 2>&1
 
 
+---
+
+PER ESEGUIRE LO SCRIPT
+
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Gianleo98/setup_ai_server/refs/heads/master/setup_ai.sh)"
