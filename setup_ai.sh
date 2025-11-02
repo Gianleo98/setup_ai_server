@@ -1,18 +1,50 @@
 #!/bin/bash
 set -e  # Ferma lo script in caso di errore
 
-echo "🚀 Aggiornamento pacchetti..."
-sudo apt update && sudo apt upgrade -y
+log() { echo -e "\033[1;32m$1\033[0m"; }
 
-echo "🧠 Installazione driver Nvidia e CUDA..."
-sudo ubuntu-drivers autoinstall
-sudo apt install -y nvidia-cuda-toolkit
+# -------------------------------------------------------------------------
+# 🚀 AGGIORNAMENTO SISTEMA
+# -------------------------------------------------------------------------
+log "🚀 Aggiornamento pacchetti..."
+sudo apt update -y && sudo apt upgrade -y
 
-echo "📡 Installazione Speedtest CLI..."
-sudo apt install -y speedtest-cli
+# -------------------------------------------------------------------------
+# 🧠 DRIVER NVIDIA + CUDA
+# -------------------------------------------------------------------------
+log "🧠 Verifica driver NVIDIA..."
+if command -v nvidia-smi &>/dev/null; then
+  log "✅ Driver NVIDIA già installato."
+else
+  log "🛠️ Installazione driver NVIDIA..."
+  sudo ubuntu-drivers autoinstall
+fi
 
-echo "🌐 Configurazione rete Wi-Fi..."
-sudo bash -c 'cat > /etc/netplan/50-cloud-init.yaml <<EOF
+log "🎯 Verifica toolkit CUDA..."
+if dpkg -l | grep -q nvidia-cuda-toolkit; then
+  log "✅ CUDA Toolkit già installato."
+else
+  log "🛠️ Installazione CUDA Toolkit..."
+  sudo apt install -y nvidia-cuda-toolkit
+fi
+
+# -------------------------------------------------------------------------
+# 📡 SPEEDTEST
+# -------------------------------------------------------------------------
+log "📡 Verifica Speedtest CLI..."
+if command -v speedtest &>/dev/null; then
+  log "✅ Speedtest già installato."
+else
+  log "🛠️ Installazione Speedtest CLI..."
+  sudo apt install -y speedtest-cli
+fi
+
+# -------------------------------------------------------------------------
+# 🌐 CONFIGURAZIONE RETE WI-FI
+# -------------------------------------------------------------------------
+if ! grep -q "192.168.1.70" /etc/netplan/50-cloud-init.yaml 2>/dev/null; then
+  log "🌐 Configurazione rete Wi-Fi..."
+  sudo bash -c 'cat > /etc/netplan/50-cloud-init.yaml <<EOF
 network:
   version: 2
   wifis:
@@ -33,41 +65,62 @@ network:
             key-management: "psk"
             password: "41954959"
 EOF'
-sudo netplan apply
+  sudo netplan apply
+else
+  log "✅ Configurazione rete già presente."
+fi
 
-echo "💤 Disattivazione sospensione automatica..."
-sudo sed -i 's/^#HandleLidSwitch=.*/HandleLidSwitch=ignore/' /etc/systemd/logind.conf
-sudo sed -i 's/^#HandleLidSwitchDocked=.*/HandleLidSwitchDocked=ignore/' /etc/systemd/logind.conf
+# -------------------------------------------------------------------------
+# 💤 NO SLEEP
+# -------------------------------------------------------------------------
+log "💤 Disattivazione sospensione automatica..."
+sudo sed -i 's/^#\?HandleLidSwitch=.*/HandleLidSwitch=ignore/' /etc/systemd/logind.conf
+sudo sed -i 's/^#\?HandleLidSwitchDocked=.*/HandleLidSwitchDocked=ignore/' /etc/systemd/logind.conf
 sudo systemctl restart systemd-logind
 
-echo "💾 Espansione partizione LVM..."
+# -------------------------------------------------------------------------
+# 💾 ESPANSIONE LVM
+# -------------------------------------------------------------------------
+log "💾 Espansione partizione LVM..."
+sudo partprobe || true
+sudo pvresize /dev/sda3 || true
 sudo lvextend -l +100%FREE /dev/ubuntu-vg/ubuntu-lv || true
 sudo resize2fs /dev/ubuntu-vg/ubuntu-lv || true
 
 # -------------------------------------------------------------------------
-# 🔄 Ricarico moduli NVIDIA senza reboot (fallback a reboot se necessario)
+# 🔄 VERIFICA E CARICAMENTO MODULI NVIDIA
 # -------------------------------------------------------------------------
-echo "🔄 Ricarico moduli NVIDIA senza riavvio..."
-sudo modprobe -r nouveau || true
-sudo modprobe nvidia || true
-sudo modprobe nvidia_uvm || true
-sudo modprobe nvidia_modeset || true
+log "🔄 Verifica moduli NVIDIA..."
+MODULES="nvidia nvidia_uvm nvidia_modeset"
+for mod in $MODULES; do
+  if lsmod | grep -wq "$mod"; then
+    log "✅ Modulo $mod già caricato."
+  else
+    log "📦 Carico modulo $mod..."
+    sudo modprobe $mod || true
+  fi
+done
 
 if nvidia-smi &>/dev/null; then
-  echo "✅ Driver NVIDIA attivo senza riavvio."
+  log "✅ Driver NVIDIA attivo."
 else
-  echo "⚠️ Driver NVIDIA non attivo, riavvio necessario..."
+  log "⚠️ Driver NVIDIA non attivo, riavvio necessario."
   sudo reboot
   exit 0
 fi
 
 # -------------------------------------------------------------------------
-# 🧠 Installazione e configurazione Ollama
+# 🧠 INSTALLAZIONE OLLAMA
 # -------------------------------------------------------------------------
-echo "🧠 Installazione Ollama..."
-curl -fsSL https://ollama.com/install.sh | sh
+log "🧠 Verifica installazione Ollama..."
+if command -v ollama &>/dev/null; then
+  log "✅ Ollama già installato."
+else
+  log "🛠️ Installazione Ollama..."
+  curl -fsSL https://ollama.com/install.sh | sh
+fi
 
-echo "⚙️ Configurazione Ollama per GPU..."
+log "⚙️ Configurazione Ollama per GPU..."
 sudo mkdir -p /etc/systemd/system/ollama.service.d
 sudo bash -c 'cat > /etc/systemd/system/ollama.service.d/override.conf <<EOF
 [Unit]
@@ -85,62 +138,86 @@ Environment="OLLAMA_LLM_LIBRARY=cuda_v11"
 Environment="OLLAMA_FLASH_ATTENTION=1"
 EOF'
 
-sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
 sudo systemctl restart ollama
 
-echo "⬇️ Download modelli Ollama..."
-ollama pull llama3.2:latest
+if ! ollama list | grep -q llama3.2; then
+  log "⬇️ Download modello Ollama llama3.2..."
+  ollama pull llama3.2:latest
+else
+  log "✅ Modello llama3.2 già scaricato."
+fi
 
 # -------------------------------------------------------------------------
-# 🐋 Installazione Docker + Open WebUI
+# 🐋 DOCKER + OPEN WEBUI
 # -------------------------------------------------------------------------
-echo "🐋 Installazione Docker..."
-sudo apt install -y ca-certificates curl gnupg lsb-release
-sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-  https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
-  | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-sudo apt update
-sudo apt install -y docker-ce docker-ce-cli containerd.io
+log "🐋 Verifica Docker..."
+if command -v docker &>/dev/null; then
+  log "✅ Docker già installato."
+else
+  log "🛠️ Installazione Docker..."
+  sudo apt install -y ca-certificates curl gnupg lsb-release
+  sudo mkdir -p /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  echo \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+    https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
+    | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+  sudo apt update
+  sudo apt install -y docker-ce docker-ce-cli containerd.io
+fi
 
-echo "🌐 Avvio Open WebUI collegato a Ollama..."
-sudo docker run -d --network=host -v open-webui:/app/backend/data \
-  -e OLLAMA_BASE_URL=http://127.0.0.1:11434 \
-  --name open-webui --restart always \
-  ghcr.io/open-webui/open-webui:main
-
-# -------------------------------------------------------------------------
-# 🐍 Installazione Pyenv
-# -------------------------------------------------------------------------
-echo "🐍 Installazione Pyenv..."
-sudo apt install -y make build-essential libssl-dev zlib1g-dev \
-  libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
-  libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev \
-  libffi-dev liblzma-dev git
-
-curl https://pyenv.run | bash
-
-echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
-echo '[[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
-echo 'eval "$(pyenv init - bash)"' >> ~/.bashrc
+if sudo docker ps -a --format '{{.Names}}' | grep -q open-webui; then
+  log "✅ Contenitore Open WebUI già presente."
+else
+  log "🌐 Avvio Open WebUI collegato a Ollama..."
+  sudo docker run -d --network=host -v open-webui:/app/backend/data \
+    -e OLLAMA_BASE_URL=http://127.0.0.1:11434 \
+    --name open-webui --restart always \
+    ghcr.io/open-webui/open-webui:main
+fi
 
 # -------------------------------------------------------------------------
-# 🖼️ Installazione Stable Diffusion AUTOMATIC1111
+# 🐍 PYENV
 # -------------------------------------------------------------------------
-echo "🖼️ Installazione Stable Diffusion AUTOMATIC1111..."
-cd /home/ubuntu
-git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
-cd stable-diffusion-webui
-./webui.sh --exit
+log "🐍 Verifica Pyenv..."
+if [ -d "$HOME/.pyenv" ]; then
+  log "✅ Pyenv già installato."
+else
+  log "🛠️ Installazione Pyenv..."
+  sudo apt install -y make build-essential libssl-dev zlib1g-dev \
+    libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
+    libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev \
+    libffi-dev liblzma-dev git
+  curl https://pyenv.run | bash
+  echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
+  echo '[[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
+  echo 'eval "$(pyenv init - bash)"' >> ~/.bashrc
+fi
 
-echo "⚙️ Configurazione avvio automatico Stable Diffusion..."
-(crontab -l 2>/dev/null; echo '@reboot cd /home/ubuntu/stable-diffusion-webui && ./webui.sh --listen --api --port 7860 >> /home/ubuntu/webui.log 2>&1') | crontab -
+# -------------------------------------------------------------------------
+# 🖼️ STABLE DIFFUSION
+# -------------------------------------------------------------------------
+log "🖼️ Verifica Stable Diffusion..."
+if [ -d "/home/ubuntu/stable-diffusion-webui" ]; then
+  log "✅ Stable Diffusion già presente."
+else
+  log "🛠️ Installazione Stable Diffusion..."
+  cd /home/ubuntu
+  git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
+  cd stable-diffusion-webui
+  ./webui.sh --exit
+fi
+
+if ! crontab -l | grep -q "stable-diffusion-webui"; then
+  log "⚙️ Configurazione avvio automatico Stable Diffusion..."
+  (crontab -l 2>/dev/null; echo '@reboot cd /home/ubuntu/stable-diffusion-webui && ./webui.sh --listen --api --port 7860 >> /home/ubuntu/webui.log 2>&1') | crontab -
+else
+  log "✅ Avvio automatico Stable Diffusion già configurato."
+fi
 
 # -------------------------------------------------------------------------
-# 🔁 Riavvio finale
+# 🔁 REBOOT FINALE
 # -------------------------------------------------------------------------
-echo "✅ Installazione completata. Riavvio del sistema per applicare tutto."
+log "✅ Setup completato. Riavvio per applicare le modifiche..."
 sudo reboot
