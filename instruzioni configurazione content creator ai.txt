@@ -1,0 +1,103 @@
+sudo apt update && upgrade -y
+
+# Installazione Nvidia Driver
+sudo ubuntu-drivers autoinstall
+sudo apt install nvidia-cuda-toolkit -y
+
+# Installazione Speed Test
+sudo apt install speedtest-cli
+
+# Configurazione Network
+sudo nano /etc/netplan/50-cloud-init.yaml
+
+network:
+  version: 2
+  wifis:
+    wlo1:
+      dhcp4: false
+      addresses:
+        - 192.168.1.70/24
+      nameservers:
+        addresses:
+          - 8.8.8.8
+          - 8.8.4.4
+      routes:
+        - to: 0.0.0.0/0
+          via: 192.168.1.1
+      access-points:
+        "TP-Link_FC88":
+          auth:
+            key-management: "psk"
+            password: "41954959"
+
+sudo netplan apply
+
+# Configurazione no sleep
+sudo nano /etc/systemd/logind.conf
+
+HandleLidSwitch=ignore
+HandleLidSwitchDocked=ignore
+
+sudo systemctl restart systemd-logind
+
+# take all the size
+sudo lvextend -l +100%FREE /dev/ubuntu-vg/ubuntu-lv
+sudo resize2fs /dev/ubuntu-vg/ubuntu-lv
+
+# Configurazione AI
+curl -fsSL https://ollama.com/install.sh | sh
+sudo systemctl edit ollama.service
+
+[Service]
+ExecStart=
+ExecStart=/usr/local/bin/ollama serve
+Environment="OLLAMA_HOST=0.0.0.0:11434"
+Environment="OLLAMA_DEVICE=gpu"
+Environment="OLLAMA_USE_CUDA=1"
+Environment="CUDA_VISIBLE_DEVICES=0"
+
+sudo systemctl daemon-reexec
+sudo systemctl daemon-reload
+sudo systemctl restart ollama
+
+ollama pull llama2-uncensored:7b
+ollama pull llama3:8b
+ollama pull llama3.2-vision:11b
+ollama pull llama3.2:latest
+
+watch -n 0.5 nvidia-smi
+
+# install docker and open web ui
+https://docs.docker.com/engine/install/ubuntu
+
+sudo docker run -d --network=host -v open-webui:/app/backend/data -e OLLAMA_BASE_URL=http://127.0.0.1:11434 --name open-webui --restart always ghcr.io/open-webui/open-webui:main
+
+# Installazione pyenv
+
+sudo apt install -y \
+  make build-essential libssl-dev zlib1g-dev \
+  libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
+  libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev \
+  libffi-dev liblzma-dev git
+
+curl https://pyenv.run | bash
+
+export PYENV_ROOT="$HOME/.pyenv"
+[[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
+eval "$(pyenv init - bash)"
+
+pyenv -h (verifica la corretta installazione)
+
+# installazione automatic1111 w/ stable diffusion 1.5
+
+git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
+cd stable-diffusion-webui
+./webui.sh
+
+# configurazione stable diffusion 1.5 per farlo girare ad ogni avvio, senza avviarlo a mano.
+
+crontab -e
+
+@reboot cd /home/ubuntu/stable-diffusion-webui && ./webui.sh --listen --api --port 7860 >> /home/ubuntu/webui.log 2>&1
+
+
