@@ -1,4 +1,6 @@
 #!/bin/bash
+# sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Gianleo98/setup_ai_server/refs/heads/master/setup_ai.sh)"
+# sudo bash -c "$(curl -fsSL https://bit.ly/janraion_omen_ai)"
 set -e  # Ferma lo script in caso di errore
 
 log() { echo -e "\033[1;32m$1\033[0m"; }
@@ -8,6 +10,37 @@ log() { echo -e "\033[1;32m$1\033[0m"; }
 # -------------------------------------------------------------------------
 log "🚀 Aggiornamento pacchetti..."
 sudo apt update -y && sudo apt upgrade -y
+
+# -------------------------------------------------------------------------
+# 🔐 CONFIGURAZIONE SSH (senza firewall)
+# -------------------------------------------------------------------------
+log "🔐 Verifica e configurazione SSH..."
+
+# Installa OpenSSH Server se non presente
+if dpkg -l | grep -q openssh-server; then
+  log "✅ OpenSSH Server già installato."
+else
+  log "🛠️ Installazione OpenSSH Server..."
+  sudo apt install -y openssh-server
+fi
+
+# Abilita e avvia il servizio SSH
+sudo systemctl enable ssh
+sudo systemctl start ssh
+
+# Controlla che SSH sia effettivamente in ascolto
+if sudo ss -tlnp | grep -q ":22"; then
+  log "✅ SSH attivo e in ascolto sulla porta 22."
+else
+  log "⚠️ SSH non sembra attivo. Riavvio del servizio..."
+  sudo systemctl restart ssh
+  sleep 2
+  if sudo ss -tlnp | grep -q ":22"; then
+    log "✅ SSH attivo dopo riavvio."
+  else
+    log "❌ Errore: SSH non è in ascolto sulla porta 22."
+  fi
+fi
 
 # -------------------------------------------------------------------------
 # 🧠 DRIVER NVIDIA + CUDA
