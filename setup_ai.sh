@@ -145,11 +145,20 @@ else
   log "🛠️ Installazione Docker..."
   sudo apt install -y ca-certificates curl gnupg lsb-release
   sudo mkdir -p /etc/apt/keyrings
-  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+  # Rimuovi la chiave se già esiste per evitare prompt
+  sudo rm -f /etc/apt/keyrings/docker.gpg
+
+  # Scarica e installa la chiave in modo silenzioso
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor --yes -o /etc/apt/keyrings/docker.gpg
+
+  # Aggiungi il repository Docker
   echo \
     "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
     https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
     | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+  # Aggiorna pacchetti e installa Docker
   sudo apt update
   sudo apt install -y docker-ce docker-ce-cli containerd.io
 fi
@@ -163,6 +172,7 @@ else
     --name open-webui --restart always \
     ghcr.io/open-webui/open-webui:main
 fi
+
 
 # -------------------------------------------------------------------------
 # 🐍 PYENV
