@@ -29,17 +29,6 @@ else
 fi
 
 # -------------------------------------------------------------------------
-# 📡 SPEEDTEST
-# -------------------------------------------------------------------------
-log "📡 Verifica Speedtest CLI..."
-if command -v speedtest &>/dev/null; then
-  log "✅ Speedtest già installato."
-else
-  log "🛠️ Installazione Speedtest CLI..."
-  sudo apt install -y speedtest-cli
-fi
-
-# -------------------------------------------------------------------------
 # 🌐 CONFIGURAZIONE RETE WI-FI
 # -------------------------------------------------------------------------
 if ! grep -q "192.168.1.70" /etc/netplan/50-cloud-init.yaml 2>/dev/null; then
@@ -123,19 +112,17 @@ fi
 log "⚙️ Configurazione Ollama per GPU..."
 sudo mkdir -p /etc/systemd/system/ollama.service.d
 sudo bash -c 'cat > /etc/systemd/system/ollama.service.d/override.conf <<EOF
-[Unit]
-After=network-online.target nvidia-persistenced.service
-Wants=network-online.target nvidia-persistenced.service
 
 [Service]
-ExecStart=
-ExecStart=/usr/local/bin/ollama serve
 Environment="OLLAMA_HOST=0.0.0.0:11434"
 Environment="OLLAMA_DEVICE=gpu"
 Environment="OLLAMA_USE_CUDA=1"
 Environment="CUDA_VISIBLE_DEVICES=0"
-Environment="OLLAMA_LLM_LIBRARY=cuda_v11"
 Environment="OLLAMA_FLASH_ATTENTION=1"
+Environment="OLLAMA_NUM_PARALLEL=1"
+Environment="OLLAMA_MAX_LOADED_MODELS=1"
+ExecStart=
+ExecStart=/usr/local/bin/ollama serve
 EOF'
 
 sudo systemctl daemon-reload
