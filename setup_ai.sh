@@ -110,10 +110,11 @@ sudo lvextend -l +100%FREE /dev/ubuntu-vg/ubuntu-lv || true
 sudo resize2fs /dev/ubuntu-vg/ubuntu-lv || true
 
 # -------------------------------------------------------------------------
-# 🔄 VERIFICA E CARICAMENTO MODULI NVIDIA
+# 🔄 VERIFICA E CARICAMENTO MODULI NVIDIA (con attesa)
 # -------------------------------------------------------------------------
 log "🔄 Verifica moduli NVIDIA..."
 MODULES="nvidia nvidia_uvm nvidia_modeset"
+
 for mod in $MODULES; do
   if lsmod | grep -wq "$mod"; then
     log "✅ Modulo $mod già caricato."
@@ -123,44 +124,93 @@ for mod in $MODULES; do
   fi
 done
 
-if nvidia-smi &>/dev/null; then
-  log "✅ Driver NVIDIA attivo."
-else
-  log "⚠️ Driver NVIDIA non attivo, riavvio necessario."
+# Attendi che i moduli siano completamente inizializzati
+log "⏳ Attesa inizializzazione driver NVIDIA..."
+sleep 5
+
+# Tenta di verificare il driver più volte prima di forzare il riavvio
+MAX_RETRIES=5
+for i in $(seq 1 $MAX_RETRIES); do
+  if nvidia-smi &>/dev/null; then
+    log "✅ Driver NVIDIA attivo."
+    DRIVER_OK=true
+    break
+  else
+    log "⏳ Tentativo $i/$MAX_RETRIES: driver non ancora pronto..."
+    sleep 3
+  fi
+done
+
+if [ "$DRIVER_OK" != true ]; then
+  log "⚠️ Driver NVIDIA non attivo dopo vari tentativi, riavvio necessario."
   sudo reboot
   exit 0
 fi
+
 
 # -------------------------------------------------------------------------
 # 🧠 INSTALLAZIONE OLLAMA
 # -------------------------------------------------------------------------
 log "🧠 Verifica installazione Ollama..."
-if command -v ollama &>/dev/null; then
-  log "✅ Ollama già installato."
+
+INSTALL_OLLAMA=false
+
+# 1️⃣ Verifica se il binario esiste
+if ! command -v ollama &>/dev/null; then
+  INSTALL_OLLAMA=true
 else
+  # 2️⃣ Verifica che il servizio Ollama risponda
+  if ! curl -fs http://127.0.0.1:11434/api/version &>/dev/null; then
+    log "⚠️ Ollama installato ma non attivo. Reinstallazione..."
+    INSTALL_OLLAMA=true
+  fi
+fi
+
+# 3️⃣ Se necessario, installa Ollama
+if [ "$INSTALL_OLLAMA" = true ]; then
   log "🛠️ Installazione Ollama..."
   curl -fsSL https://ollama.com/install.sh | sh
 fi
 
+# -------------------------------------------------------------------------
+# ⚙️ CONFIGURAZIONE OLLAMA GPU
+# -------------------------------------------------------------------------
 log "⚙️ Configurazione Ollama per GPU..."
 sudo mkdir -p /etc/systemd/system/ollama.service.d
 sudo bash -c 'cat > /etc/systemd/system/ollama.service.d/override.conf <<EOF
 
 [Service]
+ExecStart=
+ExecStart=/usr/local/bin/ollama serve
 Environment="OLLAMA_HOST=0.0.0.0:11434"
 Environment="OLLAMA_DEVICE=gpu"
 Environment="OLLAMA_USE_CUDA=1"
-Environment="CUDA_VISIBLE_DEVICES=0"
-Environment="OLLAMA_FLASH_ATTENTION=1"
-Environment="OLLAMA_NUM_PARALLEL=1"
-Environment="OLLAMA_MAX_LOADED_MODELS=1"
-ExecStart=
-ExecStart=/usr/local/bin/ollama serve
 EOF'
 
+sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
 sudo systemctl restart ollama
 
+# 4️⃣ Attesa avvio Ollama
+log "⏳ Attesa avvio servizio Ollama..."
+for i in {1..10}; do
+  if curl -fs http://127.0.0.1:11434/api/version &>/dev/null; then
+    log "✅ Ollama attivo e funzionante."
+    break
+  else
+    log "⏳ Tentativo $i/10: Ollama non ancora pronto..."
+    sleep 3
+  fi
+done
+
+if ! curl -fs http://127.0.0.1:11434/api/version &>/dev/null; then
+  log "❌ Errore: Ollama non è riuscito ad avviarsi correttamente."
+  exit 1
+fi
+
+# -------------------------------------------------------------------------
+# ⬇️ MODELLO
+# -------------------------------------------------------------------------
 if ! ollama list | grep -q llama3.2; then
   log "⬇️ Download modello Ollama llama3.2..."
   ollama pull llama3.2:latest
