@@ -62,35 +62,39 @@ else
 fi
 
 # -------------------------------------------------------------------------
-# 🌐 CONFIGURAZIONE RETE WI-FI
+# 🌐 CONFIGURAZIONE RETE WI-FI (sicura per SSH)
 # -------------------------------------------------------------------------
-if ! grep -q "192.168.1.70" /etc/netplan/50-cloud-init.yaml 2>/dev/null; then
-  log "🌐 Configurazione rete Wi-Fi..."
-  sudo bash -c 'cat > /etc/netplan/50-cloud-init.yaml <<EOF
-network:
-  version: 2
-  wifis:
-    wlo1:
-      dhcp4: false
-      addresses:
-        - 192.168.1.70/24
-      nameservers:
-        addresses:
-          - 8.8.8.8
-          - 8.8.4.4
-      routes:
-        - to: 0.0.0.0/0
-          via: 192.168.1.1
-      access-points:
-        "TP-Link_FC88":
-          auth:
-            key-management: "psk"
-            password: "41954959"
-EOF'
-  sudo netplan apply
-else
-  log "✅ Configurazione rete già presente."
-fi
+# if [ -n "$SSH_CONNECTION" ]; then
+#   log "⚠️ Connessione SSH attiva — salto configurazione rete per evitare disconnessione."
+# else
+#   if ! grep -q "192.168.1.70" /etc/netplan/50-cloud-init.yaml 2>/dev/null; then
+#     log "🌐 Configurazione rete Wi-Fi..."
+#     sudo bash -c 'cat > /etc/netplan/50-cloud-init.yaml <<EOF
+# network:
+#   version: 2
+#   wifis:
+#     wlo1:
+#       dhcp4: false
+#       addresses:
+#         - 192.168.1.70/24
+#       nameservers:
+#         addresses:
+#           - 8.8.8.8
+#           - 8.8.4.4
+#       routes:
+#         - to: 0.0.0.0/0
+#           via: 192.168.1.1
+#       access-points:
+#         "TP-Link_FC88":
+#           auth:
+#             key-management: "psk"
+#             password: "41954959"
+# EOF'
+#     sudo netplan apply
+#   else
+#     log "✅ Configurazione rete già presente."
+#   fi
+# fi
 
 # -------------------------------------------------------------------------
 # 💤 NO SLEEP
