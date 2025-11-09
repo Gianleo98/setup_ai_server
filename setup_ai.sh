@@ -275,83 +275,55 @@ fi
 
 
 # -------------------------------------------------------------------------
-# 🐍 PYENV
+# 🐍 PYENV + STABLE DIFFUSION
 # -------------------------------------------------------------------------
-log "🐍 Verifica Pyenv..."
+log "🐍 Installazione Pyenv e Stable Diffusion"
+
+# 1️⃣ Installazione dipendenze per pyenv
+sudo apt install -y \
+  make build-essential libssl-dev zlib1g-dev \
+  libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
+  libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev \
+  libffi-dev liblzma-dev git
+
+# 2️⃣ Installazione pyenv se non già presente
 if [ -d "$HOME/.pyenv" ]; then
-  log "✅ Pyenv già installato."
+    log "✅ Pyenv già installato."
 else
-  log "🛠️ Installazione Pyenv..."
-  sudo apt install -y make build-essential libssl-dev zlib1g-dev \
-    libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
-    libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev \
-    libffi-dev liblzma-dev git
-  curl https://pyenv.run | bash
-  echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
-  echo '[[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
-  echo 'eval "$(pyenv init - bash)"' >> ~/.bashrc
+    log "🛠️ Installazione pyenv..."
+    curl https://pyenv.run | bash
 fi
 
-# -------------------------------------------------------------------------
-# 🖼️ STABLE DIFFUSION
-# -------------------------------------------------------------------------
-log "🖼️ Verifica Stable Diffusion..."
-SD_DIR="$USER_HOME/stable-diffusion-webui"
+# 3️⃣ Configurazione shell per pyenv
+export PYENV_ROOT="$HOME/.pyenv"
+[[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
+eval "$(pyenv init - bash)"
 
-# 1️⃣ Installa pacchetti Python essenziali corretti
-log "🧠 Verifica pacchetti Python essenziali..."
-REQUIRED_PY_PKGS=(python3-venv python3-pip python3-distutils python3-setuptools git)
-for pkg in "${REQUIRED_PY_PKGS[@]}"; do
-    if dpkg -l | grep -qw "$pkg"; then
-        log "✅ Pacchetto $pkg già installato."
-    else
-        log "🛠️ Installazione pacchetto $pkg..."
-        sudo apt update
-        sudo apt install -y "$pkg"
-    fi
-done
+# 4️⃣ Verifica installazione pyenv
+pyenv -h >/dev/null 2>&1 && log "✅ Pyenv funzionante."
 
-# 2️⃣ Clona repository se non presente
+# 5️⃣ Installazione Stable Diffusion repo AUTOMATIC1111
+SD_DIR="$HOME/stable-diffusion-webui"
 if [ -d "$SD_DIR" ]; then
-    log "✅ Stable Diffusion già presente in $SD_DIR."
+    log "✅ Stable Diffusion già presente."
 else
-    log "🛠️ Installazione Stable Diffusion..."
-    cd "$USER_HOME"
-    git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
+    log "🛠️ Clonazione repo Stable Diffusion..."
+    git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git "$SD_DIR"
 fi
 
-# 3️⃣ Assicurati che l'utente corrente abbia permessi completi
-sudo chown -R $SUDO_USER:$SUDO_USER "$SD_DIR"
-chmod -R u+rwX "$SD_DIR"
-
+# 6️⃣ Avvio WebUI in background
+log "▶️ Avvio Stable Diffusion WebUI..."
 cd "$SD_DIR"
+nohup ./webui.sh --listen --api --port 7860 >> "$HOME/webui.log" 2>&1 &
 
-# 4️⃣ Rimuovi venv corrotto se presente
-if [ -d "venv" ]; then
-    log "⚠️ Venv esistente trovato, rimuovo per ricrearlo..."
-    rm -rf venv
-fi
+log "✅ Stable Diffusion WebUI avviato in background. Log: $HOME/webui.log"
 
-# 5️⃣ Creazione virtual environment
-log "🛠️ Creazione virtual environment..."
-python3 -m venv venv
-
-# 6️⃣ Attiva venv e aggiorna pip
-source venv/bin/activate
-pip install --upgrade pip setuptools wheel
-
-# 7️⃣ Avvio immediato WebUI in background
-log "▶️ Avvio Stable Diffusion WebUI in background..."
-nohup ./webui.sh --listen --api --port 7860 >> "$USER_HOME/webui.log" 2>&1 &
-
-log "✅ Stable Diffusion WebUI avviato. Log: $USER_HOME/webui.log"
-
-# 8️⃣ Configurazione avvio automatico via cron se non già presente
+# 7️⃣ Configurazione avvio automatico via cron se non già presente
 if ! crontab -l | grep -q "stable-diffusion-webui"; then
-    log "⚙️ Configurazione avvio automatico Stable Diffusion..."
-    (crontab -l 2>/dev/null; echo "@reboot cd $SD_DIR && ./webui.sh --listen --api --port 7860 >> $USER_HOME/webui.log 2>&1") | crontab -
+    (crontab -l 2>/dev/null; echo "@reboot cd $SD_DIR && ./webui.sh --listen --api --port 7860 >> $HOME/webui.log 2>&1") | crontab -
+    log "⚙️ Configurazione avvio automatico completata."
 else
-    log "✅ Avvio automatico Stable Diffusion già configurato."
+    log "✅ Avvio automatico già configurato."
 fi
 
 
