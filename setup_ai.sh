@@ -274,59 +274,62 @@ else
 fi
 
 # -------------------------------------------------------------------------
-# 🎬 INSTALLAZIONE WAN 2.2 + SERVER REST API
+# 🎬 INSTALLAZIONE WAN 2.2 + SERVER REST API (Python virtualenv)
 # -------------------------------------------------------------------------
 log "🎬 Verifica installazione Wan 2.2..."
 
 WAN_DIR="/opt/wan2.2"
 WAN_MODEL_DIR="$WAN_DIR/Wan2.2-T2V-A14B"
 WAN_SERVICE="/etc/systemd/system/wan-api.service"
-WAN_VENV="$WAN_DIR/venv"
 
-# 1️⃣ Clona il progetto se non esiste
-if [ ! -d "$WAN_DIR" ]; then
-    log "🛠️ Clonazione Wan 2.2 in $WAN_DIR..."
-    sudo git clone https://github.com/Wan-Video/Wan2.2.git "$WAN_DIR"
+# 1️⃣ Clona il repository se non esiste
+if [ -d "$WAN_DIR" ]; then
+  log "✅ Wan 2.2 già installato in $WAN_DIR."
+else
+  log "🛠️ Clono Wan 2.2 in $WAN_DIR..."
+  sudo git clone https://github.com/Wan-Video/Wan2.2.git "$WAN_DIR"
 fi
 
-# 2️⃣ Crea la virtual environment se non esiste
-if [ ! -d "$WAN_VENV" ]; then
-    log "⚡ Creazione virtual environment per Wan 2.2..."
-    python3 -m venv "$WAN_VENV"
+# 2️⃣ Crea virtual environment Python se non esiste
+if [ ! -d "$WAN_DIR/venv" ]; then
+  log "🧠 Creo virtual environment Python..."
+  python3 -m venv "$WAN_DIR/venv"
 fi
 
-# 3️⃣ Puntiamo a pip e python della venv
-PIP="$WAN_VENV/bin/pip"
-PYTHON="$WAN_VENV/bin/python"
+# Attiva il virtualenv
+source "$WAN_DIR/venv/bin/activate"
 
-# Aggiorna pip nella venv
-$PIP install --upgrade pip
+# 3️⃣ Aggiorna pip
+pip install --upgrade pip
 
-# 4️⃣ Installa librerie Python principali nella venv
-PY_LIBS=(torch torchvision torchaudio xformers fastapi uvicorn pydantic huggingface_hub)
-for lib in "${PY_LIBS[@]}"; do
-    log "🛠️ Installazione $lib nella virtual environment..."
-    $PIP install "$lib" --extra-index-url https://download.pytorch.org/whl/cu121
-done
+# 4️⃣ Installa PyTorch compatibile GPU prima di qualsiasi altra libreria
+log "🛠️ Installazione PyTorch con supporto CUDA..."
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
-# 5️⃣ Installa requirements del progetto nella venv
+# 5️⃣ Installa le librerie richieste da requirements.txt
 if [ -f "$WAN_DIR/requirements.txt" ]; then
-    log "📘 Installazione requirements Wan 2.2 nella virtual environment..."
-    $PIP install -r "$WAN_DIR/requirements.txt"
+  log "📘 Installazione dependencies Wan 2.2..."
+  pip install -r "$WAN_DIR/requirements.txt"
+else
+  log "⚠️ File requirements.txt non trovato, salto."
 fi
 
-# 6️⃣ Scarica modello se non presente
-if [ ! -d "$WAN_MODEL_DIR" ]; then
-    log "⬇️ Download modello Wan 2.2 T2V-A14B..."
-    $PIP install "huggingface_hub[cli]"
-    $WAN_VENV/bin/huggingface-cli download Wan-Video/Wan2.2-T2V-A14B --local-dir "$WAN_MODEL_DIR" || log "⚠️ Download fallito, verifica token HuggingFace."
+# 6️⃣ Scarica il modello se non presente
+if [ -d "$WAN_MODEL_DIR" ]; then
+  log "✅ Modello Wan 2.2 già presente."
+else
+  log "⬇️ Download modello Wan 2.2 T2V-A14B..."
+  pip install "huggingface_hub[cli]" || true
+  huggingface-cli download Wan-Video/Wan2.2-T2V-A14B --local-dir "$WAN_MODEL_DIR" || log "⚠️ Download fallito, verifica token HuggingFace."
 fi
 
-# 7️⃣ Creazione server REST API se non già presente
+# 7️⃣ Creazione script REST API se non presente
 WAN_API_FILE="$WAN_DIR/wan_api.py"
-if [ ! -f "$WAN_API_FILE" ]; then
-    log "🧩 Creazione script REST API Wan..."
-    sudo bash -c "cat > $WAN_API_FILE <<'EOF'
+if [ -f "$WAN_API_FILE" ]; then
+  log "✅ Script API Wan già presente."
+else
+  log "🧩 Creazione script REST API Wan..."
+  sudo bash -c "cat > $WAN_API_FILE <<'EOF'
 from fastapi import FastAPI
 from pydantic import BaseModel
 import subprocess, uuid, os
@@ -344,7 +347,7 @@ def generate_video(req: GenerateRequest):
     output_id = str(uuid.uuid4())[:8]
     output_path = f'output_{output_id}.mp4'
     cmd = [
-        '$PYTHON', 'generate.py',
+        'python3', 'generate.py',
         '--task', req.task,
         '--ckpt_dir', './Wan2.2-T2V-A14B',
         '--prompt', req.prompt,
@@ -361,10 +364,12 @@ def generate_video(req: GenerateRequest):
 EOF"
 fi
 
-# 8️⃣ Creazione servizio systemd per la venv
-if [ ! -f "$WAN_SERVICE" ]; then
-    log "🧩 Creazione servizio systemd wan-api..."
-    sudo bash -c "cat > $WAN_SERVICE <<EOF
+# 8️⃣ Creazione servizio systemd se non esiste
+if [ -f "$WAN_SERVICE" ]; then
+  log "✅ Servizio wan-api già configurato."
+else
+  log "🧩 Creazione servizio systemd wan-api..."
+  sudo bash -c "cat > $WAN_SERVICE <<EOF
 [Unit]
 Description=WAN 2.2 REST API Service
 After=network.target
@@ -373,34 +378,37 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=$WAN_DIR
-ExecStart=$WAN_VENV/bin/python -m uvicorn wan_api:app --host 0.0.0.0 --port 8500
+ExecStart=$WAN_DIR/venv/bin/python -m uvicorn wan_api:app --host 0.0.0.0 --port 8500
 Restart=always
 Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target
 EOF"
-    sudo systemctl daemon-reload
-    sudo systemctl enable wan-api.service
-    log "✅ Servizio wan-api abilitato all'avvio."
+  sudo systemctl daemon-reload
+  sudo systemctl enable wan-api.service
+  log "✅ Servizio wan-api abilitato all'avvio."
 fi
 
-# 9️⃣ Avvio o riavvio servizio
+# 9️⃣ Avvio servizio
 if systemctl is-active --quiet wan-api.service; then
-    log "🔄 Riavvio servizio wan-api..."
-    sudo systemctl restart wan-api.service
+  log "🔄 Riavvio servizio wan-api..."
+  sudo systemctl restart wan-api.service
 else
-    log "▶️ Avvio servizio wan-api..."
-    sudo systemctl start wan-api.service
+  log "▶️ Avvio servizio wan-api..."
+  sudo systemctl start wan-api.service
 fi
 
-# 🔟 Verifica
+# 10️⃣ Verifica
 sleep 5
 if curl -fs http://127.0.0.1:8500/docs &>/dev/null; then
-    log "✅ Servizio Wan API attivo su http://<server>:8500"
+  log "✅ Servizio Wan API attivo su http://<server>:8500"
 else
-    log "⚠️ Wan API non risponde, controlla con: journalctl -u wan-api -f"
+  log "⚠️ Wan API non risponde, controlla con: journalctl -u wan-api -f"
 fi
+
+# Disattiva virtualenv alla fine
+deactivate
 
 
 
