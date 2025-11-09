@@ -308,7 +308,14 @@ else
   ./webui.sh --exit || true
 fi
 
-# Configurazione avvio automatico
+# Avvio immediato al termine dello script
+log "▶️ Avvio Stable Diffusion WebUI..."
+cd "$SD_DIR"
+nohup ./webui.sh --listen --api --port 7860 >> "$USER_HOME/webui.log" 2>&1 &
+
+log "✅ Stable Diffusion WebUI avviato in background. Log: $USER_HOME/webui.log"
+
+# Configurazione avvio automatico via cron se non già presente
 if ! crontab -l | grep -q "stable-diffusion-webui"; then
   log "⚙️ Configurazione avvio automatico Stable Diffusion..."
   (crontab -l 2>/dev/null; echo "@reboot cd $SD_DIR && ./webui.sh --listen --api --port 7860 >> $USER_HOME/webui.log 2>&1") | crontab -
