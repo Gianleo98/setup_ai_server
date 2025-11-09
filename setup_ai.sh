@@ -279,41 +279,33 @@ fi
 # -------------------------------------------------------------------------
 log "🖼️ Configurazione Stable Diffusion WebUI con Docker"
 
-# 1️⃣ Verifica che Docker sia installato
-if ! command -v docker &>/dev/null; then
-    log "🛠️ Docker non trovato, installazione in corso..."
-    sudo apt update
-    sudo apt install -y docker.io
-    sudo systemctl enable docker
-    sudo systemctl start docker
-else
-    log "✅ Docker già installato."
-fi
+# Cartella dati persistente sotto $HOME
+SD_HOME="$HOME/stable-diffusion"
+mkdir -p "$SD_HOME/data"
 
-# 2️⃣ Creazione cartella dati persistente
-SD_DATA="$HOME/stable-diffusion-data"
-mkdir -p "$SD_DATA"
-
-# 3️⃣ Pull immagine Docker Universonic Stable Diffusion
+# Pull immagine Docker Universonic Stable Diffusion
 log "⬇️ Pull immagine Docker stable-diffusion-webui..."
 sudo docker pull universonic/stable-diffusion-webui:latest
 
-# 4️⃣ Avvio container (se già esiste, riavvio)
+# Se il container esiste, fermalo e rimuovilo
 if sudo docker ps -a --format '{{.Names}}' | grep -q "^sd-webui$"; then
-    log "🔄 Container sd-webui già esistente, riavvio..."
-    sudo docker restart sd-webui
-else
-    log "▶️ Avvio container sd-webui..."
-    sudo docker run -d \
-        --name sd-webui \
-        --gpus all \
-        --restart always \
-        -p 7860:7860 \
-        -v "$SD_DATA:/data" \
-        universonic/stable-diffusion-webui:latest
+    log "🔄 Container sd-webui già esistente, fermo e rimuovo..."
+    sudo docker stop sd-webui
+    sudo docker rm sd-webui
 fi
 
-# 5️⃣ Verifica container
+# Avvio container con REST API e listen su tutte le interfacce
+log "▶️ Avvio container sd-webui con --api --listen..."
+sudo docker run -d \
+    --name sd-webui \
+    --gpus all \
+    --restart always \
+    -p 7860:7860 \
+    -v "$SD_HOME/data:/data" \
+    universonic/stable-diffusion-webui:latest \
+    --api --listen
+
+# Verifica container
 sleep 5
 if sudo docker ps --format '{{.Names}}' | grep -q "^sd-webui$"; then
     log "✅ Stable Diffusion WebUI attivo su http://<server>:7860"
