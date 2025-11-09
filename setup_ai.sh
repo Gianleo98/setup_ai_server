@@ -281,15 +281,18 @@ COMFY_DIR="$COMFY_REPO"          # main.py è qui
 VENV_DIR="$COMFY_REPO/venv"
 WAN_DIR="$COMFY_REPO/WAN2.2"
 
-# 1️⃣ Clonazione ComfyUI se non presente
+log "🖼️ Installazione ComfyUI + WAN 2.2 senza chiedere credenziali"
+
+# 1️⃣ Clonazione ComfyUI se non presente, gestione cartella esistente
 if [ ! -d "$COMFY_REPO/.git" ]; then
     echo "📥 Clonazione ComfyUI..."
-    git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFY_REPO"
+    rm -rf "$COMFY_REPO"  # rimuove eventuali cartelle parziali
+    git -c credential.helper= clone https://github.com/comfyanonymous/ComfyUI.git "$COMFY_REPO"
 else
     echo "🔄 Repository ComfyUI già presente, faccio pull..."
     cd "$COMFY_REPO"
-    git reset --hard
-    git pull
+    git -c credential.helper= reset --hard
+    git -c credential.helper= pull
 fi
 
 # 2️⃣ Creazione e attivazione virtualenv
@@ -304,12 +307,16 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 # 4️⃣ Installazione dipendenze ComfyUI
 pip install -r requirements.txt
 
-# 5️⃣ Clonazione WAN 2.2
-if [ ! -d "$WAN_DIR" ]; then
-    git clone https://github.com/AI-Workshop/WAN-2.2.git "$WAN_DIR"
+# 5️⃣ Clonazione WAN 2.2 senza richiesta credenziali
+if [ ! -d "$WAN_DIR/.git" ]; then
+    echo "📥 Clonazione WAN 2.2..."
+    rm -rf "$WAN_DIR"
+    git -c credential.helper= clone https://github.com/AI-Workshop/WAN-2.2.git "$WAN_DIR"
 else
+    echo "🔄 WAN 2.2 già presente, faccio pull..."
     cd "$WAN_DIR"
-    git pull
+    git -c credential.helper= reset --hard
+    git -c credential.helper= pull
 fi
 
 # 6️⃣ Copia nodi e workflow in ComfyUI
