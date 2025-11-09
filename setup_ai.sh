@@ -276,8 +276,8 @@ fi
 # -----------------------------
 # 🎯 CONFIGURAZIONE COMFYUI + WAN 2.2
 # -----------------------------
-COMFY_REPO="$USER_HOME/ComfyUI"         # percorso repository ComfyUI
-COMFY_DIR="$COMFY_REPO/ComfyUI"         # percorso interno dove sta main.py
+COMFY_REPO="$USER_HOME/ComfyUI"  # percorso repository ComfyUI
+COMFY_DIR="$COMFY_REPO"          # qui si trova main.py
 VENV_DIR="$COMFY_REPO/venv"
 WAN_DIR="$COMFY_REPO/WAN2.2"
 
