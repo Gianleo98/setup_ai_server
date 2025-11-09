@@ -283,25 +283,27 @@ fi
 # 🖼️ STABLE DIFFUSION
 # -------------------------------------------------------------------------
 log "🖼️ Verifica Stable Diffusion..."
-SD_DIR="/home/ubuntu/stable-diffusion-webui"
+
+SD_DIR="$HOME/stable-diffusion-webui"
 
 if [ -d "$SD_DIR" ]; then
-  log "✅ Stable Diffusion già presente."
+  log "✅ Stable Diffusion già presente in $SD_DIR."
 else
   log "🛠️ Installazione Stable Diffusion..."
-  cd /home/ubuntu
+  cd "$HOME"
   git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
   cd "$SD_DIR"
   ./webui.sh --exit || true
 fi
 
-
+# Configurazione avvio automatico se non presente
 if ! crontab -l | grep -q "stable-diffusion-webui"; then
   log "⚙️ Configurazione avvio automatico Stable Diffusion..."
-  (crontab -l 2>/dev/null; echo '@reboot cd /home/ubuntu/stable-diffusion-webui && ./webui.sh --listen --api --port 7860 >> /home/ubuntu/webui.log 2>&1') | crontab -
+  (crontab -l 2>/dev/null; echo "@reboot cd $SD_DIR && ./webui.sh --listen --api --port 7860 >> $HOME/webui.log 2>&1") | crontab -
 else
   log "✅ Avvio automatico Stable Diffusion già configurato."
 fi
+
 
 # -------------------------------------------------------------------------
 # 🎬 INSTALLAZIONE WAN 2.2 + SERVER REST API
