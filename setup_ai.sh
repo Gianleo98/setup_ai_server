@@ -273,250 +273,147 @@ else
     ghcr.io/open-webui/open-webui:main
 fi
 
-
 # -------------------------------------------------------------------------
-# 🖼️ STABLE DIFFUSION via Docker + NVIDIA Container Toolkit
+# 🎬 INSTALLAZIONE WAN 2.2 + SERVER REST API
 # -------------------------------------------------------------------------
-log "🖼️ Configurazione Stable Diffusion WebUI con Docker"
+log "🎬 Verifica installazione Wan 2.2..."
 
-# Cartella dati persistente sotto $HOME
-SD_HOME="$USER_HOME/stable-diffusion"
-mkdir -p "$SD_HOME/data"
+WAN_DIR="/opt/wan2.2"
+WAN_MODEL_DIR="$WAN_DIR/Wan2.2-T2V-A14B"
+WAN_SERVICE="/etc/systemd/system/wan-api.service"
 
-# -------------------------------------------------------------------------
-# Installazione NVIDIA Container Toolkit (se mancante)
-# -------------------------------------------------------------------------
-if ! command -v nvidia-container-runtime &>/dev/null; then
-    log "🛠️ NVIDIA Container Toolkit non trovato. Installazione in corso..."
-
-    # Aggiungi repository NVIDIA
-    distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
-    curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-docker.gpg
-    curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | \
-        sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-docker.gpg] https://#g' | \
-        sudo tee /etc/apt/sources.list.d/nvidia-docker.list
-
-    sudo apt update
-    sudo apt install -y nvidia-docker2
-
-    # Riavvia Docker per applicare il runtime NVIDIA
-    sudo systemctl restart docker
-    log "✅ NVIDIA Container Toolkit installato correttamente"
+# 1️⃣ Verifica se Wan 2.2 è già installato
+if [ -d "$WAN_DIR" ]; then
+  log "✅ Wan 2.2 già installato in $WAN_DIR."
 else
-    log "✅ NVIDIA Container Toolkit già presente"
+  log "🛠️ Installazione Wan 2.2..."
+  sudo git clone https://github.com/Wan-Video/Wan2.2.git "$WAN_DIR"
 fi
 
-# -------------------------------------------------------------------------
-# Configurazione Docker runtime NVIDIA se assente
-# -------------------------------------------------------------------------
-if [ ! -f /etc/docker/daemon.json ]; then
-  log "⚙️ Creazione /etc/docker/daemon.json per runtime NVIDIA..."
-  sudo bash -c 'cat > /etc/docker/daemon.json <<EOF
-{
-  "default-runtime": "nvidia",
-  "runtimes": {
-    "nvidia": {
-      "path": "nvidia-container-runtime",
-      "runtimeArgs": []
-    }
-  }
-}
-EOF'
-  sudo systemctl restart docker
+# 2️⃣ Installazione dipendenze Python se necessario
+log "🧠 Verifica dipendenze Python per Wan 2.2..."
+REQUIRED_PKGS=("python3" "python3-pip" "git")
+for pkg in "${REQUIRED_PKGS[@]}"; do
+  if dpkg -l | grep -qw "$pkg"; then
+    log "✅ Pacchetto $pkg già installato."
+  else
+    log "🛠️ Installazione $pkg..."
+    sudo apt install -y "$pkg"
+  fi
+done
+
+# 3️⃣ Verifica librerie Python (torch, fastapi, ecc.)
+log "📦 Verifica librerie Python..."
+PY_LIBS=(torch torchvision torchaudio xformers fastapi uvicorn pydantic huggingface_hub)
+for lib in "${PY_LIBS[@]}"; do
+  if python3 -m pip show "$lib" &>/dev/null; then
+    log "✅ Libreria Python $lib già installata."
+  else
+    log "🛠️ Installazione libreria $lib..."
+    pip install "$lib" --extra-index-url https://download.pytorch.org/whl/cu121 || true
+  fi
+done
+
+# Installa le requirements del progetto
+if [ -f "$WAN_DIR/requirements.txt" ]; then
+  log "📘 Installazione requirements Wan 2.2..."
+  pip install -r "$WAN_DIR/requirements.txt"
 else
-  log "✅ /etc/docker/daemon.json già presente"
+  log "⚠️ File requirements.txt non trovato, salto."
 fi
 
-# -------------------------------------------------------------------------
-# Verifica GPU tramite Docker
-# -------------------------------------------------------------------------
-if ! sudo docker run --rm --gpus all nvidia/cuda:12.1.105-base-ubuntu22.04 nvidia-smi &>/dev/null; then
-  log "❌ Errore: Docker non rileva GPU. Controlla driver NVIDIA e nvidia-docker2."
-  exit 1
-fi
-log "✅ Docker rileva correttamente la GPU"
-
-# -------------------------------------------------------------------------
-# Pull immagine Docker Universonic Stable Diffusion
-# -------------------------------------------------------------------------
-log "⬇️ Pull immagine Docker stable-diffusion-webui..."
-sudo docker pull universonic/stable-diffusion-webui:latest
-
-# -------------------------------------------------------------------------
-# Se il container esiste, fermalo e rimuovilo
-# -------------------------------------------------------------------------
-if sudo docker ps -a --format '{{.Names}}' | grep -q "^sd-webui$"; then
-    log "🔄 Container sd-webui già esistente, fermo e rimuovo..."
-    sudo docker stop sd-webui
-    sudo docker rm sd-webui
+# 4️⃣ Scarica il modello se non presente
+if [ -d "$WAN_MODEL_DIR" ]; then
+  log "✅ Modello Wan 2.2 già scaricato."
+else
+  log "⬇️ Download modello Wan 2.2 T2V-A14B..."
+  pip install "huggingface_hub[cli]" || true
+  huggingface-cli download Wan-Video/Wan2.2-T2V-A14B --local-dir "$WAN_MODEL_DIR" || log "⚠️ Download fallito, verifica token HuggingFace."
 fi
 
-# -------------------------------------------------------------------------
-# Avvio container con REST API e listen su tutte le interfacce
-# -------------------------------------------------------------------------
-log "▶️ Avvio container sd-webui con --api --listen..."
-sudo docker run -d \
-    --name sd-webui \
-    --gpus all \
-    --restart always \
-    -p 7860:7860 \
-    -v "$SD_HOME/data:/data" \
-    universonic/stable-diffusion-webui:latest \
-    --api --listen
+# 5️⃣ Creazione server REST API se non già presente
+WAN_API_FILE="$WAN_DIR/wan_api.py"
+if [ -f "$WAN_API_FILE" ]; then
+  log "✅ Script API Wan già presente."
+else
+  log "🧩 Creazione script REST API Wan..."
+  sudo bash -c "cat > $WAN_API_FILE <<'EOF'
+from fastapi import FastAPI
+from pydantic import BaseModel
+import subprocess, uuid, os
 
-# -------------------------------------------------------------------------
-# Verifica container
-# -------------------------------------------------------------------------
+app = FastAPI()
+
+class GenerateRequest(BaseModel):
+    prompt: str
+    size: str = "480*270"
+    task: str = "t2v-A14B"
+    offload_model: bool = True
+
+@app.post("/generate")
+def generate_video(req: GenerateRequest):
+    output_id = str(uuid.uuid4())[:8]
+    output_path = f"output_{output_id}.mp4"
+    cmd = [
+        "python3", "generate.py",
+        "--task", req.task,
+        "--ckpt_dir", "./Wan2.2-T2V-A14B",
+        "--prompt", req.prompt,
+        "--size", req.size,
+        "--offload_model", str(req.offload_model),
+        "--convert_model_dtype",
+        "--output", output_path
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if os.path.exists(output_path):
+        return {"status": "success", "output": output_path}
+    else:
+        return {"status": "error", "details": result.stderr}
+EOF"
+fi
+
+# 6️⃣ Creazione servizio systemd (solo se non esiste)
+if [ -f "$WAN_SERVICE" ]; then
+  log "✅ Servizio wan-api già configurato."
+else
+  log "🧩 Creazione servizio systemd wan-api..."
+  sudo bash -c "cat > $WAN_SERVICE <<EOF
+[Unit]
+Description=WAN 2.2 REST API Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=$WAN_DIR
+ExecStart=/usr/bin/python3 -m uvicorn wan_api:app --host 0.0.0.0 --port 8500
+Restart=always
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+EOF"
+  sudo systemctl daemon-reload
+  sudo systemctl enable wan-api.service
+  log "✅ Servizio wan-api abilitato all'avvio."
+fi
+
+# 7️⃣ Avvio (o riavvio) del servizio
+if systemctl is-active --quiet wan-api.service; then
+  log "🔄 Riavvio servizio wan-api..."
+  sudo systemctl restart wan-api.service
+else
+  log "▶️ Avvio servizio wan-api..."
+  sudo systemctl start wan-api.service
+fi
+
+# 8️⃣ Verifica
 sleep 5
-if sudo docker ps --format '{{.Names}}' | grep -q "^sd-webui$"; then
-    log "✅ Stable Diffusion WebUI attivo su http://<server>:7860"
+if curl -fs http://127.0.0.1:8500/docs &>/dev/null; then
+  log "✅ Servizio Wan API attivo su http://<server>:8500"
 else
-    log "⚠️ Errore: container sd-webui non avviato correttamente"
+  log "⚠️ Wan API non risponde, controlla con: journalctl -u wan-api -f"
 fi
-
-
-
-# # -------------------------------------------------------------------------
-# # 🎬 INSTALLAZIONE WAN 2.2 + SERVER REST API
-# # -------------------------------------------------------------------------
-# log "🎬 Verifica installazione Wan 2.2..."
-
-# WAN_DIR="/opt/wan2.2"
-# WAN_MODEL_DIR="$WAN_DIR/Wan2.2-T2V-A14B"
-# WAN_SERVICE="/etc/systemd/system/wan-api.service"
-
-# # 1️⃣ Verifica se Wan 2.2 è già installato
-# if [ -d "$WAN_DIR" ]; then
-#   log "✅ Wan 2.2 già installato in $WAN_DIR."
-# else
-#   log "🛠️ Installazione Wan 2.2..."
-#   sudo git clone https://github.com/Wan-Video/Wan2.2.git "$WAN_DIR"
-# fi
-
-# # 2️⃣ Installazione dipendenze Python se necessario
-# log "🧠 Verifica dipendenze Python per Wan 2.2..."
-# REQUIRED_PKGS=("python3" "python3-pip" "git")
-# for pkg in "${REQUIRED_PKGS[@]}"; do
-#   if dpkg -l | grep -qw "$pkg"; then
-#     log "✅ Pacchetto $pkg già installato."
-#   else
-#     log "🛠️ Installazione $pkg..."
-#     sudo apt install -y "$pkg"
-#   fi
-# done
-
-# # 3️⃣ Verifica librerie Python (torch, fastapi, ecc.)
-# log "📦 Verifica librerie Python..."
-# PY_LIBS=(torch torchvision torchaudio xformers fastapi uvicorn pydantic huggingface_hub)
-# for lib in "${PY_LIBS[@]}"; do
-#   if python3 -m pip show "$lib" &>/dev/null; then
-#     log "✅ Libreria Python $lib già installata."
-#   else
-#     log "🛠️ Installazione libreria $lib..."
-#     pip install "$lib" --extra-index-url https://download.pytorch.org/whl/cu121 || true
-#   fi
-# done
-
-# # Installa le requirements del progetto
-# if [ -f "$WAN_DIR/requirements.txt" ]; then
-#   log "📘 Installazione requirements Wan 2.2..."
-#   pip install -r "$WAN_DIR/requirements.txt"
-# else
-#   log "⚠️ File requirements.txt non trovato, salto."
-# fi
-
-# # 4️⃣ Scarica il modello se non presente
-# if [ -d "$WAN_MODEL_DIR" ]; then
-#   log "✅ Modello Wan 2.2 già scaricato."
-# else
-#   log "⬇️ Download modello Wan 2.2 T2V-A14B..."
-#   pip install "huggingface_hub[cli]" || true
-#   huggingface-cli download Wan-Video/Wan2.2-T2V-A14B --local-dir "$WAN_MODEL_DIR" || log "⚠️ Download fallito, verifica token HuggingFace."
-# fi
-
-# # 5️⃣ Creazione server REST API se non già presente
-# WAN_API_FILE="$WAN_DIR/wan_api.py"
-# if [ -f "$WAN_API_FILE" ]; then
-#   log "✅ Script API Wan già presente."
-# else
-#   log "🧩 Creazione script REST API Wan..."
-#   sudo bash -c "cat > $WAN_API_FILE <<'EOF'
-# from fastapi import FastAPI
-# from pydantic import BaseModel
-# import subprocess, uuid, os
-
-# app = FastAPI()
-
-# class GenerateRequest(BaseModel):
-#     prompt: str
-#     size: str = "480*270"
-#     task: str = "t2v-A14B"
-#     offload_model: bool = True
-
-# @app.post("/generate")
-# def generate_video(req: GenerateRequest):
-#     output_id = str(uuid.uuid4())[:8]
-#     output_path = f"output_{output_id}.mp4"
-#     cmd = [
-#         "python3", "generate.py",
-#         "--task", req.task,
-#         "--ckpt_dir", "./Wan2.2-T2V-A14B",
-#         "--prompt", req.prompt,
-#         "--size", req.size,
-#         "--offload_model", str(req.offload_model),
-#         "--convert_model_dtype",
-#         "--output", output_path
-#     ]
-#     result = subprocess.run(cmd, capture_output=True, text=True)
-#     if os.path.exists(output_path):
-#         return {"status": "success", "output": output_path}
-#     else:
-#         return {"status": "error", "details": result.stderr}
-# EOF"
-# fi
-
-# # 6️⃣ Creazione servizio systemd (solo se non esiste)
-# if [ -f "$WAN_SERVICE" ]; then
-#   log "✅ Servizio wan-api già configurato."
-# else
-#   log "🧩 Creazione servizio systemd wan-api..."
-#   sudo bash -c "cat > $WAN_SERVICE <<EOF
-# [Unit]
-# Description=WAN 2.2 REST API Service
-# After=network.target
-
-# [Service]
-# Type=simple
-# User=root
-# WorkingDirectory=$WAN_DIR
-# ExecStart=/usr/bin/python3 -m uvicorn wan_api:app --host 0.0.0.0 --port 8500
-# Restart=always
-# Environment=PYTHONUNBUFFERED=1
-
-# [Install]
-# WantedBy=multi-user.target
-# EOF"
-#   sudo systemctl daemon-reload
-#   sudo systemctl enable wan-api.service
-#   log "✅ Servizio wan-api abilitato all'avvio."
-# fi
-
-# # 7️⃣ Avvio (o riavvio) del servizio
-# if systemctl is-active --quiet wan-api.service; then
-#   log "🔄 Riavvio servizio wan-api..."
-#   sudo systemctl restart wan-api.service
-# else
-#   log "▶️ Avvio servizio wan-api..."
-#   sudo systemctl start wan-api.service
-# fi
-
-# # 8️⃣ Verifica
-# sleep 5
-# if curl -fs http://127.0.0.1:8500/docs &>/dev/null; then
-#   log "✅ Servizio Wan API attivo su http://<server>:8500"
-# else
-#   log "⚠️ Wan API non risponde, controlla con: journalctl -u wan-api -f"
-# fi
 
 
 # # -------------------------------------------------------------------------
