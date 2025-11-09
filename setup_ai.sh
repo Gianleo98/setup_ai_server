@@ -288,6 +288,10 @@ source "$VENV_DIR/bin/activate"
 
 # 2️⃣ Clonazione repository ComfyUI
 if [ ! -d "$COMFY_DIR/.git" ]; then
+    if [ -d "$COMFY_DIR" ]; then
+        log "⚠️ Cartella ComfyUI esiste ma non è un repository git. Rinominazione..."
+        mv "$COMFY_DIR" "${COMFY_DIR}_backup_$(date +%s)"
+    fi
     log "📥 Clonazione repository ComfyUI..."
     git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFY_DIR"
 else
@@ -295,8 +299,6 @@ else
     cd "$COMFY_DIR"
     git pull
 fi
-
-cd "$COMFY_DIR"
 
 # 3️⃣ Aggiorna pip e installa PyTorch con CUDA
 log "🧠 Installazione PyTorch + CUDA..."
