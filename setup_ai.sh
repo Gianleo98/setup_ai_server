@@ -276,7 +276,7 @@ fi
 # -----------------------------
 # 🎯 CONFIGURAZIONE VARIABILI
 # -----------------------------
-COMFY_DIR="$HOME/ComfyUI"
+COMFY_DIR="$USER_HOME/ComfyUI"
 WAN_DIR="$COMFY_DIR/WAN2.2"
 VENV_DIR="$COMFY_DIR/venv"
 
