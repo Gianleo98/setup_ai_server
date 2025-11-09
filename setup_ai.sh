@@ -280,10 +280,50 @@ fi
 log "🖼️ Configurazione Stable Diffusion WebUI con Docker"
 
 # Cartella dati persistente sotto $HOME
-SD_HOME="$HOME/stable-diffusion"
+SD_HOME="$USER_HOME/stable-diffusion"
 mkdir -p "$SD_HOME/data"
 
+# -------------------------------------------------------------------------
+# Configurazione Docker runtime NVIDIA
+# -------------------------------------------------------------------------
+if [ ! -f /etc/docker/daemon.json ]; then
+  log "⚙️ Creazione /etc/docker/daemon.json per runtime NVIDIA..."
+  sudo bash -c 'cat > /etc/docker/daemon.json <<EOF
+{
+  "default-runtime": "nvidia",
+  "runtimes": {
+    "nvidia": {
+      "path": "nvidia-container-runtime",
+      "runtimeArgs": []
+    }
+  }
+}
+EOF'
+  sudo systemctl restart docker
+else
+  log "✅ /etc/docker/daemon.json già presente"
+fi
+
+# -------------------------------------------------------------------------
+# Verifica NVIDIA Container Toolkit
+# -------------------------------------------------------------------------
+if ! command -v nvidia-container-runtime &>/dev/null; then
+  log "🛠️ Installazione NVIDIA Container Toolkit..."
+  sudo apt update
+  sudo apt install -y nvidia-container-toolkit
+  sudo systemctl restart docker
+fi
+
+# Controlla se Docker vede la GPU
+if ! sudo docker run --rm --gpus all nvidia/cuda:12.1.105-base-ubuntu22.04 nvidia-smi &>/dev/null; then
+  log "❌ Errore: Docker non rileva GPU. Controlla driver NVIDIA e nvidia-container-toolkit."
+  exit 1
+fi
+log "✅ Docker rileva correttamente la GPU"
+
+# -------------------------------------------------------------------------
 # Pull immagine Docker Universonic Stable Diffusion
+# -------------------------------------------------------------------------
 log "⬇️ Pull immagine Docker stable-diffusion-webui..."
 sudo docker pull universonic/stable-diffusion-webui:latest
 
@@ -294,21 +334,11 @@ if sudo docker ps -a --format '{{.Names}}' | grep -q "^sd-webui$"; then
     sudo docker rm sd-webui
 fi
 
-# Verifica se NVIDIA GPU è disponibile
-if command -v nvidia-smi &>/dev/null && nvidia-smi -L &>/dev/null; then
-    log "🟢 GPU NVIDIA rilevata, avvio container con supporto GPU..."
-    GPU_FLAG="--gpus all"
-else
-    log "⚪ GPU non rilevata, avvio container in modalità CPU..."
-    GPU_FLAG=""
-fi
-
 # Avvio container con REST API e listen su tutte le interfacce
 log "▶️ Avvio container sd-webui con --api --listen..."
 sudo docker run -d \
     --name sd-webui \
-    $GPU_FLAG \
-    --restart always \
+    --gpus all \
     -p 7860:7860 \
     -v "$SD_HOME/data:/data" \
     universonic/stable-diffusion-webui:latest \
