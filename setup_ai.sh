@@ -277,26 +277,27 @@ fi
 # 🎯 CONFIGURAZIONE COMFYUI + WAN 2.2
 # -----------------------------
 COMFY_REPO="$USER_HOME/ComfyUI"  # percorso repository ComfyUI
-COMFY_DIR="$COMFY_REPO"          # qui si trova main.py
+COMFY_DIR="$COMFY_REPO"          # main.py è qui
 VENV_DIR="$COMFY_REPO/venv"
 WAN_DIR="$COMFY_REPO/WAN2.2"
 
-log "🖼️ Installazione ComfyUI in locale con supporto GPU..."
-
-# 1️⃣ Creazione ambiente virtuale
-python3 -m venv "$VENV_DIR"
-source "$VENV_DIR/bin/activate"
-log "🔹 Virtualenv attivato"
-
-# 2️⃣ Clonazione repository ComfyUI se non presente
+# 1️⃣ Clonazione ComfyUI se non presente
 if [ ! -d "$COMFY_REPO/.git" ]; then
+    echo "📥 Clonazione ComfyUI..."
     git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFY_REPO"
 else
+    echo "🔄 Repository ComfyUI già presente, faccio pull..."
     cd "$COMFY_REPO"
+    git reset --hard
     git pull
 fi
 
-# 3️⃣ Installazione PyTorch con CUDA
+# 2️⃣ Creazione e attivazione virtualenv
+python3 -m venv "$VENV_DIR"
+source "$VENV_DIR/bin/activate"
+echo "🔹 Virtualenv attivato"
+
+# 3️⃣ Installazione PyTorch + CUDA
 pip install --upgrade pip
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
