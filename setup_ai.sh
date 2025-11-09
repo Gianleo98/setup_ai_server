@@ -283,15 +283,18 @@ fi
 # 🖼️ STABLE DIFFUSION
 # -------------------------------------------------------------------------
 log "🖼️ Verifica Stable Diffusion..."
-if [ -d "/home/ubuntu/stable-diffusion-webui" ]; then
+SD_DIR="/home/ubuntu/stable-diffusion-webui"
+
+if [ -d "$SD_DIR" ]; then
   log "✅ Stable Diffusion già presente."
 else
   log "🛠️ Installazione Stable Diffusion..."
-  cd /home/ubu
+  cd /home/ubuntu
   git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
-  cd stable-diffusion-webui
-  ./webui.sh --exit
+  cd "$SD_DIR"
+  ./webui.sh --exit || true
 fi
+
 
 if ! crontab -l | grep -q "stable-diffusion-webui"; then
   log "⚙️ Configurazione avvio automatico Stable Diffusion..."
