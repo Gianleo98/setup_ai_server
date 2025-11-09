@@ -304,10 +304,8 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 # 4️⃣ Installazione dipendenze ComfyUI
 pip install -r requirements.txt
 
-# Legge il token come utente originale
-GITHUB_TOKEN=$(sudo -u "$SUDO_USER" cat "$USER_HOME/.github_token")
-
-# Clona WAN 2.2 usando il token
+# 5️⃣ Clona WAN 2.2 usando il token (se necessario)
+GITHUB_TOKEN=$(cat "$USER_HOME/.github_token")
 if [ ! -d "$WAN_DIR" ]; then
     git clone https://$GITHUB_TOKEN@github.com/Wan-Video/Wan2.2.git "$WAN_DIR"
 else
@@ -316,14 +314,24 @@ else
     git pull
 fi
 
+# 6️⃣ Copia cartella 'wan' in ComfyUI
+if [ -d "$WAN_DIR/wan" ]; then
+    mkdir -p "$COMFY_REPO/wan"
+    cp -r "$WAN_DIR/wan/." "$COMFY_REPO/wan/"
+    echo "✅ Cartella WAN copiata in ComfyUI"
+else
+    echo "⚠️ Nessuna cartella 'wan' trovata in WAN2.2"
+fi
 
-# 6️⃣ Copia nodi e workflow in ComfyUI
-mkdir -p "$COMFY_REPO/modules"
-cp -r "$WAN_DIR/modules/." "$COMFY_REPO/modules/" || true
-mkdir -p "$COMFY_REPO/workflows"
-cp -r "$WAN_DIR/workflows/." "$COMFY_REPO/workflows/" || true
+# 7️⃣ Copia esempi (opzionale)
+if [ -d "$WAN_DIR/examples" ]; then
+    mkdir -p "$COMFY_REPO/examples"
+    cp -r "$WAN_DIR/examples/." "$COMFY_REPO/examples/"
+    echo "✅ Esempi WAN copiati in ComfyUI"
+fi
 
-# 7️⃣ Avvio ComfyUI con WAN 2.2
+# 8️⃣ Avvio ComfyUI
+cd "$COMFY_REPO"
 nohup python main.py --listen --port 8188 > "$COMFY_REPO/comfyui_wan.log" 2>&1 &
 log "✅ ComfyUI + WAN 2.2 avviato su http://<server>:8188"
 
