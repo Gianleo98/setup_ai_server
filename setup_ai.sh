@@ -294,11 +294,20 @@ if sudo docker ps -a --format '{{.Names}}' | grep -q "^sd-webui$"; then
     sudo docker rm sd-webui
 fi
 
+# Verifica se NVIDIA GPU è disponibile
+if command -v nvidia-smi &>/dev/null && nvidia-smi -L &>/dev/null; then
+    log "🟢 GPU NVIDIA rilevata, avvio container con supporto GPU..."
+    GPU_FLAG="--gpus all"
+else
+    log "⚪ GPU non rilevata, avvio container in modalità CPU..."
+    GPU_FLAG=""
+fi
+
 # Avvio container con REST API e listen su tutte le interfacce
 log "▶️ Avvio container sd-webui con --api --listen..."
 sudo docker run -d \
     --name sd-webui \
-    --gpus all \
+    $GPU_FLAG \
     --restart always \
     -p 7860:7860 \
     -v "$SD_HOME/data:/data" \
