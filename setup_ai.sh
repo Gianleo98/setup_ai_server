@@ -309,7 +309,7 @@ GITHUB_TOKEN=$(sudo -u "$SUDO_USER" cat "$USER_HOME/.github_token")
 
 # Clona WAN 2.2 usando il token
 if [ ! -d "$WAN_DIR" ]; then
-    git clone https://$GITHUB_TOKEN@github.com/AI-Workshop/WAN-2.2.git "$WAN_DIR"
+    git clone https://$GITHUB_TOKEN@github.com/Wan-Video/Wan2.2.git "$WAN_DIR"
 else
     echo "🔄 WAN 2.2 già presente, aggiorno..."
     cd "$WAN_DIR"
