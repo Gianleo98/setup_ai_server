@@ -300,11 +300,17 @@ SD_DIR="$USER_HOME/stable-diffusion-webui"
 
 if [ -d "$SD_DIR" ]; then
   log "✅ Stable Diffusion già presente in $SD_DIR."
+  # Assicurati che l'utente corrente abbia permessi completi
+  sudo chown -R $SUDO_USER:$SUDO_USER "$SD_DIR"
+  chmod -R u+rwX "$SD_DIR"
 else
   log "🛠️ Installazione Stable Diffusion..."
   cd "$USER_HOME"
   git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
   cd "$SD_DIR"
+  # Imposta permessi corretti
+  sudo chown -R $SUDO_USER:$SUDO_USER "$SD_DIR"
+  chmod -R u+rwX "$SD_DIR"
   ./webui.sh --exit || true
 fi
 
@@ -322,6 +328,7 @@ if ! crontab -l | grep -q "stable-diffusion-webui"; then
 else
   log "✅ Avvio automatico Stable Diffusion già configurato."
 fi
+
 
 
 # # -------------------------------------------------------------------------
