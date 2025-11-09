@@ -304,10 +304,11 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 # 4️⃣ Installazione dipendenze ComfyUI
 pip install -r requirements.txt
 
-# 5️⃣ Clonazione WAN 2.2
-if [ ! -d "$WAN_DIR/.git" ]; then
-    echo "📥 Clonazione WAN 2.2..."
-    git clone https://github.com/AI-Workshop/WAN-2.2.git "$WAN_DIR"
+GITHUB_TOKEN=$(cat ~/.github_token)
+
+# Clona WAN 2.2 usando il token
+if [ ! -d "$WAN_DIR" ]; then
+    git clone https://$GITHUB_TOKEN@github.com/AI-Workshop/WAN-2.2.git "$WAN_DIR"
 else
     echo "🔄 WAN 2.2 già presente, aggiorno..."
     cd "$WAN_DIR"
