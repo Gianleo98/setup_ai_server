@@ -287,7 +287,7 @@ if [ -d "/home/ubuntu/stable-diffusion-webui" ]; then
   log "✅ Stable Diffusion già presente."
 else
   log "🛠️ Installazione Stable Diffusion..."
-  cd /home/ubuntu
+  cd /home/ubu
   git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
   cd stable-diffusion-webui
   ./webui.sh --exit
@@ -299,6 +299,149 @@ if ! crontab -l | grep -q "stable-diffusion-webui"; then
 else
   log "✅ Avvio automatico Stable Diffusion già configurato."
 fi
+
+# -------------------------------------------------------------------------
+# 🎬 INSTALLAZIONE WAN 2.2 + SERVER REST API
+# -------------------------------------------------------------------------
+log "🎬 Verifica installazione Wan 2.2..."
+
+WAN_DIR="/opt/wan2.2"
+WAN_MODEL_DIR="$WAN_DIR/Wan2.2-T2V-A14B"
+WAN_SERVICE="/etc/systemd/system/wan-api.service"
+
+# 1️⃣ Verifica se Wan 2.2 è già installato
+if [ -d "$WAN_DIR" ]; then
+  log "✅ Wan 2.2 già installato in $WAN_DIR."
+else
+  log "🛠️ Installazione Wan 2.2..."
+  sudo git clone https://github.com/Wan-Video/Wan2.2.git "$WAN_DIR"
+fi
+
+# 2️⃣ Installazione dipendenze Python se necessario
+log "🧠 Verifica dipendenze Python per Wan 2.2..."
+REQUIRED_PKGS=("python3" "python3-pip" "git")
+for pkg in "${REQUIRED_PKGS[@]}"; do
+  if dpkg -l | grep -qw "$pkg"; then
+    log "✅ Pacchetto $pkg già installato."
+  else
+    log "🛠️ Installazione $pkg..."
+    sudo apt install -y "$pkg"
+  fi
+done
+
+# 3️⃣ Verifica librerie Python (torch, fastapi, ecc.)
+log "📦 Verifica librerie Python..."
+PY_LIBS=(torch torchvision torchaudio xformers fastapi uvicorn pydantic huggingface_hub)
+for lib in "${PY_LIBS[@]}"; do
+  if python3 -m pip show "$lib" &>/dev/null; then
+    log "✅ Libreria Python $lib già installata."
+  else
+    log "🛠️ Installazione libreria $lib..."
+    pip install "$lib" --extra-index-url https://download.pytorch.org/whl/cu121 || true
+  fi
+done
+
+# Installa le requirements del progetto
+if [ -f "$WAN_DIR/requirements.txt" ]; then
+  log "📘 Installazione requirements Wan 2.2..."
+  pip install -r "$WAN_DIR/requirements.txt"
+else
+  log "⚠️ File requirements.txt non trovato, salto."
+fi
+
+# 4️⃣ Scarica il modello se non presente
+if [ -d "$WAN_MODEL_DIR" ]; then
+  log "✅ Modello Wan 2.2 già scaricato."
+else
+  log "⬇️ Download modello Wan 2.2 T2V-A14B..."
+  pip install "huggingface_hub[cli]" || true
+  huggingface-cli download Wan-Video/Wan2.2-T2V-A14B --local-dir "$WAN_MODEL_DIR" || log "⚠️ Download fallito, verifica token HuggingFace."
+fi
+
+# 5️⃣ Creazione server REST API se non già presente
+WAN_API_FILE="$WAN_DIR/wan_api.py"
+if [ -f "$WAN_API_FILE" ]; then
+  log "✅ Script API Wan già presente."
+else
+  log "🧩 Creazione script REST API Wan..."
+  sudo bash -c "cat > $WAN_API_FILE <<'EOF'
+from fastapi import FastAPI
+from pydantic import BaseModel
+import subprocess, uuid, os
+
+app = FastAPI()
+
+class GenerateRequest(BaseModel):
+    prompt: str
+    size: str = "480*270"
+    task: str = "t2v-A14B"
+    offload_model: bool = True
+
+@app.post("/generate")
+def generate_video(req: GenerateRequest):
+    output_id = str(uuid.uuid4())[:8]
+    output_path = f"output_{output_id}.mp4"
+    cmd = [
+        "python3", "generate.py",
+        "--task", req.task,
+        "--ckpt_dir", "./Wan2.2-T2V-A14B",
+        "--prompt", req.prompt,
+        "--size", req.size,
+        "--offload_model", str(req.offload_model),
+        "--convert_model_dtype",
+        "--output", output_path
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if os.path.exists(output_path):
+        return {"status": "success", "output": output_path}
+    else:
+        return {"status": "error", "details": result.stderr}
+EOF"
+fi
+
+# 6️⃣ Creazione servizio systemd (solo se non esiste)
+if [ -f "$WAN_SERVICE" ]; then
+  log "✅ Servizio wan-api già configurato."
+else
+  log "🧩 Creazione servizio systemd wan-api..."
+  sudo bash -c "cat > $WAN_SERVICE <<EOF
+[Unit]
+Description=WAN 2.2 REST API Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=$WAN_DIR
+ExecStart=/usr/bin/python3 -m uvicorn wan_api:app --host 0.0.0.0 --port 8500
+Restart=always
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+EOF"
+  sudo systemctl daemon-reload
+  sudo systemctl enable wan-api.service
+  log "✅ Servizio wan-api abilitato all'avvio."
+fi
+
+# 7️⃣ Avvio (o riavvio) del servizio
+if systemctl is-active --quiet wan-api.service; then
+  log "🔄 Riavvio servizio wan-api..."
+  sudo systemctl restart wan-api.service
+else
+  log "▶️ Avvio servizio wan-api..."
+  sudo systemctl start wan-api.service
+fi
+
+# 8️⃣ Verifica
+sleep 5
+if curl -fs http://127.0.0.1:8500/docs &>/dev/null; then
+  log "✅ Servizio Wan API attivo su http://<server>:8500"
+else
+  log "⚠️ Wan API non risponde, controlla con: journalctl -u wan-api -f"
+fi
+
 
 # -------------------------------------------------------------------------
 # 🔁 REBOOT FINALE
