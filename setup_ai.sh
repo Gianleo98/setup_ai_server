@@ -273,44 +273,73 @@ else
     ghcr.io/open-webui/open-webui:main
 fi
 
-# -------------------------------------------------------------------------
-# 🖼️ INSTALLAZIONE COMFYUI (LOCALE, GPU)
-# -------------------------------------------------------------------------
-COMFY_DIR="$USER_HOME/ComfyUI"
+# -----------------------------
+# 🎯 CONFIGURAZIONE VARIABILI
+# -----------------------------
+COMFY_DIR="$HOME/ComfyUI"
+WAN_DIR="$COMFY_DIR/WAN2.2"
 VENV_DIR="$COMFY_DIR/venv"
-log "🖼️ Installazione ComfyUI in locale con GPU..."
 
-# Clonazione repository
-if [ ! -d "$COMFY_DIR/.git" ]; then
-    if [ -d "$COMFY_DIR" ]; then
-        log "⚠️ Cartella ComfyUI esiste ma non è un repo git. Rinominazione..."
-        mv "$COMFY_DIR" "${COMFY_DIR}_backup_$(date +%s)"
-    fi
-    log "📥 Clonazione repository ComfyUI..."
-    git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFY_DIR"
+log() { echo -e "\033[1;32m$1\033[0m"; }
+
+# -----------------------------
+# 1️⃣ Verifica ComfyUI
+# -----------------------------
+if [ ! -d "$COMFY_DIR" ]; then
+    log "❌ ComfyUI non trovato in $COMFY_DIR. Installa prima ComfyUI!"
+    exit 1
+fi
+log "✅ ComfyUI trovato in $COMFY_DIR"
+
+# -----------------------------
+# 2️⃣ Attiva virtualenv
+# -----------------------------
+if [ ! -f "$VENV_DIR/bin/activate" ]; then
+    log "❌ Virtualenv non trovato in $VENV_DIR"
+    exit 1
+fi
+source "$VENV_DIR/bin/activate"
+log "🔹 Virtualenv attivato"
+
+# -----------------------------
+# 3️⃣ Clona WAN 2.2
+# -----------------------------
+if [ ! -d "$WAN_DIR" ]; then
+    log "📥 Clonazione WAN 2.2..."
+    git clone https://github.com/AI-Workshop/WAN-2.2.git "$WAN_DIR"
 else
-    log "🔄 Repository ComfyUI già presente, faccio pull..."
-    cd "$COMFY_DIR"
+    log "🔄 WAN 2.2 già presente, faccio pull..."
+    cd "$WAN_DIR"
     git pull
 fi
 
-# Creazione virtual environment e attivazione
-python3 -m venv "$VENV_DIR"
-source "$VENV_DIR/bin/activate"
+# -----------------------------
+# 4️⃣ Installa dipendenze WAN 2.2
+# -----------------------------
+if [ -f "$WAN_DIR/requirements.txt" ]; then
+    log "📦 Installazione dipendenze WAN 2.2..."
+    pip install --upgrade pip
+    pip install -r "$WAN_DIR/requirements.txt"
+else
+    log "⚠️ Nessun requirements.txt trovato in WAN 2.2"
+fi
 
-# Aggiornamento pip e installazione PyTorch + CUDA
-log "🧠 Installazione PyTorch + CUDA..."
-pip install --upgrade pip
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+# -----------------------------
+# 5️⃣ Copia nodi e workflow in ComfyUI
+# -----------------------------
+log "📂 Copia nodi e workflow WAN 2.2 in ComfyUI..."
+mkdir -p "$COMFY_DIR/ComfyUI/modules"
+cp -r "$WAN_DIR/modules/." "$COMFY_DIR/ComfyUI/modules/" || true
+cp -r "$WAN_DIR/workflows/." "$COMFY_DIR/ComfyUI/workflows/" || true
 
-# Installazione dipendenze ComfyUI
-log "📦 Installazione dipendenze ComfyUI..."
+# -----------------------------
+# 6️⃣ Avvio ComfyUI con WAN 2.2
+# -----------------------------
+log "▶️ Avvio ComfyUI con WAN 2.2..."
 cd "$COMFY_DIR"
-pip install -r requirements.txt
+nohup python main.py --listen --port 8188 > "$COMFY_DIR/comfyui_wan.log" 2>&1 &
 
-# Avvio ComfyUI
-log "▶️ Avvio ComfyUI (http://<server>:8188)..."
-nohup python main.py --listen --port 8188 > "$COMFY_DIR/comfyui.log" 2>&1 &
+log "✅ ComfyUI + WAN 2.2 avviato. Accesso: http://<server>:8188"
 
 
 # # -------------------------------------------------------------------------
