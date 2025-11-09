@@ -292,9 +292,15 @@ else
   echo 'eval "$(pyenv init - bash)"' >> ~/.bashrc
 fi
 
-# Assicurati che python3-venv e pip siano presenti
+# -------------------------------------------------------------------------
+# 🖼️ STABLE DIFFUSION
+# -------------------------------------------------------------------------
+log "🖼️ Verifica Stable Diffusion..."
+SD_DIR="$USER_HOME/stable-diffusion-webui"
+
+# 1️⃣ Assicurati pacchetti Python essenziali
 log "🧠 Verifica pacchetti Python essenziali..."
-REQUIRED_PY_PKGS=(python3-venv python3-pip)
+REQUIRED_PY_PKGS=(python3-venv python3-pip git)
 for pkg in "${REQUIRED_PY_PKGS[@]}"; do
     if dpkg -l | grep -qw "$pkg"; then
         log "✅ Pacchetto $pkg già installato."
@@ -304,42 +310,49 @@ for pkg in "${REQUIRED_PY_PKGS[@]}"; do
     fi
 done
 
-# -------------------------------------------------------------------------
-# 🖼️ STABLE DIFFUSION
-# -------------------------------------------------------------------------
-log "🖼️ Verifica Stable Diffusion..."
-SD_DIR="$USER_HOME/stable-diffusion-webui"
-
+# 2️⃣ Clona repository se non presente
 if [ -d "$SD_DIR" ]; then
-  log "✅ Stable Diffusion già presente in $SD_DIR."
-  # Assicurati che l'utente corrente abbia permessi completi
-  sudo chown -R $SUDO_USER:$SUDO_USER "$SD_DIR"
-  chmod -R u+rwX "$SD_DIR"
+    log "✅ Stable Diffusion già presente in $SD_DIR."
 else
-  log "🛠️ Installazione Stable Diffusion..."
-  cd "$USER_HOME"
-  git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
-  cd "$SD_DIR"
-  # Imposta permessi corretti
-  sudo chown -R $SUDO_USER:$SUDO_USER "$SD_DIR"
-  chmod -R u+rwX "$SD_DIR"
-  ./webui.sh --exit || true
+    log "🛠️ Installazione Stable Diffusion..."
+    cd "$USER_HOME"
+    git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
 fi
 
-# Avvio immediato al termine dello script
-log "▶️ Avvio Stable Diffusion WebUI..."
+# 3️⃣ Assicurati che l'utente corrente abbia permessi completi
+sudo chown -R $SUDO_USER:$SUDO_USER "$SD_DIR"
+chmod -R u+rwX "$SD_DIR"
+
 cd "$SD_DIR"
+
+# 4️⃣ Rimuovi venv corrotto se presente
+if [ -d "venv" ]; then
+    log "⚠️ Venv esistente trovato, rimuovo per ricrearlo..."
+    rm -rf venv
+fi
+
+# 5️⃣ Crea virtual environment
+log "🛠️ Creazione virtual environment..."
+python3 -m venv venv
+
+# 6️⃣ Attiva venv e aggiorna pip
+source venv/bin/activate
+pip install --upgrade pip setuptools wheel
+
+# 7️⃣ Avvio immediato WebUI in background
+log "▶️ Avvio Stable Diffusion WebUI in background..."
 nohup ./webui.sh --listen --api --port 7860 >> "$USER_HOME/webui.log" 2>&1 &
 
-log "✅ Stable Diffusion WebUI avviato in background. Log: $USER_HOME/webui.log"
+log "✅ Stable Diffusion WebUI avviato. Log: $USER_HOME/webui.log"
 
-# Configurazione avvio automatico via cron se non già presente
+# 8️⃣ Configurazione avvio automatico via cron se non già presente
 if ! crontab -l | grep -q "stable-diffusion-webui"; then
-  log "⚙️ Configurazione avvio automatico Stable Diffusion..."
-  (crontab -l 2>/dev/null; echo "@reboot cd $SD_DIR && ./webui.sh --listen --api --port 7860 >> $USER_HOME/webui.log 2>&1") | crontab -
+    log "⚙️ Configurazione avvio automatico Stable Diffusion..."
+    (crontab -l 2>/dev/null; echo "@reboot cd $SD_DIR && ./webui.sh --listen --api --port 7860 >> $USER_HOME/webui.log 2>&1") | crontab -
 else
-  log "✅ Avvio automatico Stable Diffusion già configurato."
+    log "✅ Avvio automatico Stable Diffusion già configurato."
 fi
+
 
 
 
