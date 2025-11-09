@@ -120,11 +120,20 @@ sudo systemctl restart systemd-logind
 # -------------------------------------------------------------------------
 # 💾 ESPANSIONE LVM
 # -------------------------------------------------------------------------
-log "💾 Espansione partizione LVM..."
-sudo partprobe || true
-sudo pvresize /dev/sda3 || true
-sudo lvextend -l +100%FREE /dev/ubuntu-vg/ubuntu-lv || true
-sudo resize2fs /dev/ubuntu-vg/ubuntu-lv || true
+log "💾 Verifica e espansione partizione LVM..."
+
+# Verifica se il device esiste
+if [ -b /dev/sda3 ]; then
+    log "💾 Device /dev/sda3 trovato, procedo con ridimensionamento..."
+    sudo partprobe || true
+    sudo pvresize /dev/sda3 || true
+    sudo lvextend -l +100%FREE /dev/ubuntu-vg/ubuntu-lv || true
+    sudo resize2fs /dev/ubuntu-vg/ubuntu-lv || true
+    log "✅ Espansione LVM completata."
+else
+    log "⚠️ Device /dev/sda3 non trovato. Salto ridimensionamento LVM."
+fi
+
 
 # -------------------------------------------------------------------------
 # 🔄 VERIFICA E CARICAMENTO MODULI NVIDIA (con attesa)
