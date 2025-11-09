@@ -275,55 +275,50 @@ fi
 
 
 # -------------------------------------------------------------------------
-# 🐍 PYENV + STABLE DIFFUSION
+# 🖼️ STABLE DIFFUSION via Docker
 # -------------------------------------------------------------------------
-log "🐍 Installazione Pyenv e Stable Diffusion"
+log "🖼️ Configurazione Stable Diffusion WebUI con Docker"
 
-# 1️⃣ Installazione dipendenze per pyenv
-sudo apt install -y \
-  make build-essential libssl-dev zlib1g-dev \
-  libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
-  libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev \
-  libffi-dev liblzma-dev git
-
-# 2️⃣ Installazione pyenv se non già presente
-if [ -d "$HOME/.pyenv" ]; then
-    log "✅ Pyenv già installato."
+# 1️⃣ Verifica che Docker sia installato
+if ! command -v docker &>/dev/null; then
+    log "🛠️ Docker non trovato, installazione in corso..."
+    sudo apt update
+    sudo apt install -y docker.io
+    sudo systemctl enable docker
+    sudo systemctl start docker
 else
-    log "🛠️ Installazione pyenv..."
-    curl https://pyenv.run | bash
+    log "✅ Docker già installato."
 fi
 
-# 3️⃣ Configurazione shell per pyenv
-export PYENV_ROOT="$HOME/.pyenv"
-[[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
-eval "$(pyenv init - bash)"
+# 2️⃣ Creazione cartella dati persistente
+SD_DATA="$HOME/stable-diffusion-data"
+mkdir -p "$SD_DATA"
 
-# 4️⃣ Verifica installazione pyenv
-pyenv -h >/dev/null 2>&1 && log "✅ Pyenv funzionante."
+# 3️⃣ Pull immagine Docker Universonic Stable Diffusion
+log "⬇️ Pull immagine Docker stable-diffusion-webui..."
+sudo docker pull universonic/stable-diffusion-webui:latest
 
-# 5️⃣ Installazione Stable Diffusion repo AUTOMATIC1111
-SD_DIR="$HOME/stable-diffusion-webui"
-if [ -d "$SD_DIR" ]; then
-    log "✅ Stable Diffusion già presente."
+# 4️⃣ Avvio container (se già esiste, riavvio)
+if sudo docker ps -a --format '{{.Names}}' | grep -q "^sd-webui$"; then
+    log "🔄 Container sd-webui già esistente, riavvio..."
+    sudo docker restart sd-webui
 else
-    log "🛠️ Clonazione repo Stable Diffusion..."
-    git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git "$SD_DIR"
+    log "▶️ Avvio container sd-webui..."
+    sudo docker run -d \
+        --name sd-webui \
+        --gpus all \
+        --restart always \
+        -p 7860:7860 \
+        -v "$SD_DATA:/data" \
+        universonic/stable-diffusion-webui:latest
 fi
 
-# 6️⃣ Avvio WebUI in background
-log "▶️ Avvio Stable Diffusion WebUI..."
-cd "$SD_DIR"
-nohup ./webui.sh --listen --api --port 7860 >> "$HOME/webui.log" 2>&1 &
-
-log "✅ Stable Diffusion WebUI avviato in background. Log: $HOME/webui.log"
-
-# 7️⃣ Configurazione avvio automatico via cron se non già presente
-if ! crontab -l | grep -q "stable-diffusion-webui"; then
-    (crontab -l 2>/dev/null; echo "@reboot cd $SD_DIR && ./webui.sh --listen --api --port 7860 >> $HOME/webui.log 2>&1") | crontab -
-    log "⚙️ Configurazione avvio automatico completata."
+# 5️⃣ Verifica container
+sleep 5
+if sudo docker ps --format '{{.Names}}' | grep -q "^sd-webui$"; then
+    log "✅ Stable Diffusion WebUI attivo su http://<server>:7860"
 else
-    log "✅ Avvio automatico già configurato."
+    log "⚠️ Errore: container sd-webui non avviato correttamente"
 fi
 
 
