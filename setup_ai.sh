@@ -12,6 +12,19 @@ log "🚀 Aggiornamento pacchetti..."
 sudo apt update -y && sudo apt upgrade -y
 
 # -------------------------------------------------------------------------
+# 🏠 RILEVAZIONE HOME UTENTE REALE
+# -------------------------------------------------------------------------
+# Se eseguito con sudo, ricava la home dell'utente originale
+if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
+  USER_HOME=$(eval echo ~"$SUDO_USER")
+else
+  USER_HOME="$HOME"
+fi
+
+log "🏠 Home utente rilevata: $USER_HOME"
+
+
+# -------------------------------------------------------------------------
 # 🔐 CONFIGURAZIONE SSH (senza firewall)
 # -------------------------------------------------------------------------
 log "🔐 Verifica e configurazione SSH..."
@@ -283,26 +296,26 @@ fi
 # 🖼️ STABLE DIFFUSION
 # -------------------------------------------------------------------------
 log "🖼️ Verifica Stable Diffusion..."
-
-SD_DIR="$HOME/stable-diffusion-webui"
+SD_DIR="$USER_HOME/stable-diffusion-webui"
 
 if [ -d "$SD_DIR" ]; then
   log "✅ Stable Diffusion già presente in $SD_DIR."
 else
   log "🛠️ Installazione Stable Diffusion..."
-  cd "$HOME"
+  cd "$USER_HOME"
   git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
   cd "$SD_DIR"
   ./webui.sh --exit || true
 fi
 
-# Configurazione avvio automatico se non presente
+# Configurazione avvio automatico
 if ! crontab -l | grep -q "stable-diffusion-webui"; then
   log "⚙️ Configurazione avvio automatico Stable Diffusion..."
-  (crontab -l 2>/dev/null; echo "@reboot cd $SD_DIR && ./webui.sh --listen --api --port 7860 >> $HOME/webui.log 2>&1") | crontab -
+  (crontab -l 2>/dev/null; echo "@reboot cd $SD_DIR && ./webui.sh --listen --api --port 7860 >> $USER_HOME/webui.log 2>&1") | crontab -
 else
   log "✅ Avvio automatico Stable Diffusion già configurato."
 fi
+
 
 
 # -------------------------------------------------------------------------
