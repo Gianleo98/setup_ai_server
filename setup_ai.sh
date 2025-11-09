@@ -304,7 +304,7 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 # 4️⃣ Installazione dipendenze ComfyUI
 pip install -r requirements.txt
 
-GITHUB_TOKEN=$(cat ~/.github_token)
+GITHUB_TOKEN=$(cat "$USER_HOME/.github_token")
 
 # Clona WAN 2.2 usando il token
 if [ ! -d "$WAN_DIR" ]; then
