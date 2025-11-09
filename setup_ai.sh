@@ -274,90 +274,42 @@ else
 fi
 
 # -------------------------------------------------------------------------
-# 🖼️ CARTELLA DATI PERSISTENTE
+# 🖼️ INSTALLAZIONE COMFYUI (LOCALE, GPU)
 # -------------------------------------------------------------------------
-USER_HOME="${HOME}"
-COMFY_HOME="$USER_HOME/comfyui"
-WAN_HOME="$USER_HOME/wan2.2"
+COMFY_DIR="$USER_HOME/ComfyUI"
+VENV_DIR="$COMFY_DIR/venv"
 
-mkdir -p "$COMFY_HOME"
-mkdir -p "$WAN_HOME"
+log "🖼️ Installazione ComfyUI in locale con supporto GPU..."
 
-# -------------------------------------------------------------------------
-# 🔹 CREAZIONE docker-compose.yml
-# -------------------------------------------------------------------------
-DOCKER_COMPOSE_FILE="$COMFY_HOME/docker-compose.yml"
+# 1️⃣ Creazione cartella e ambiente virtuale
+mkdir -p "$COMFY_DIR"
+python3 -m venv "$VENV_DIR"
+source "$VENV_DIR/bin/activate"
 
-log "📝 Creazione docker-compose.yml per ComfyUI + Wan 2.2"
-
-cat > "$DOCKER_COMPOSE_FILE" <<EOF
-version: "3.8"
-
-services:
-  comfyui:
-    image: ai-dock/comfyui:latest
-    container_name: comfyui
-    restart: unless-stopped
-    ports:
-      - "8090:8080"        # Web UI ComfyUI
-    volumes:
-      - "$COMFY_HOME:/ComfyUI"
-      - "/tmp:/tmp"        # opzionale, per swap/temp
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-
-  wan-api:
-    image: python:3.12-slim
-    container_name: wan-api
-    restart: unless-stopped
-    volumes:
-      - "$WAN_HOME:/opt/wan2.2"
-    working_dir: /opt/wan2.2
-    command: >
-      bash -c "pip install --upgrade pip &&
-               pip install -r requirements.txt &&
-               python3 -m uvicorn wan_api:app --host 0.0.0.0 --port 8500"
-    ports:
-      - "8500:8500"
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    environment:
-      - PYTHONUNBUFFERED=1
-EOF
-
-# -------------------------------------------------------------------------
-# 🔹 AVVIO DEI CONTAINER
-# -------------------------------------------------------------------------
-log "🚀 Avvio container ComfyUI + Wan API..."
-cd "$COMFY_HOME"
-docker compose up -d
-
-sleep 5
-
-# -------------------------------------------------------------------------
-# 🔹 VERIFICA
-# -------------------------------------------------------------------------
-if docker ps --format '{{.Names}}' | grep -q "comfyui"; then
-  log "✅ ComfyUI attivo su http://localhost:8090"
+# 2️⃣ Clonazione repository ComfyUI
+if [ ! -d "$COMFY_DIR/.git" ]; then
+    log "📥 Clonazione repository ComfyUI..."
+    git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFY_DIR"
 else
-  log "⚠️ ComfyUI non avviato correttamente"
+    log "🔄 Repository ComfyUI già presente, faccio pull..."
+    cd "$COMFY_DIR"
+    git pull
 fi
 
-if docker ps --format '{{.Names}}' | grep -q "wan-api"; then
-  log "✅ Wan API attivo su http://localhost:8500"
-else
-  log "⚠️ Wan API non avviato correttamente"
-fi
+cd "$COMFY_DIR"
+
+# 3️⃣ Aggiorna pip e installa PyTorch con CUDA
+log "🧠 Installazione PyTorch + CUDA..."
+pip install --upgrade pip
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# 4️⃣ Installazione dipendenze ComfyUI
+log "📦 Installazione dipendenze ComfyUI..."
+pip install -r requirements.txt
+
+# 5️⃣ Avvio ComfyUI su porta 8188
+log "▶️ Avvio ComfyUI (puoi accedere da http://<server>:8188)..."
+nohup python main.py --listen --port 8188 > "$COMFY_DIR/comfyui.log" 2>&1 &
 
 
 # # -------------------------------------------------------------------------
