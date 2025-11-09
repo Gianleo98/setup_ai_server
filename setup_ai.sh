@@ -275,7 +275,7 @@ fi
 
 
 # -------------------------------------------------------------------------
-# 🖼️ STABLE DIFFUSION via Docker
+# 🖼️ STABLE DIFFUSION via Docker + NVIDIA Container Toolkit
 # -------------------------------------------------------------------------
 log "🖼️ Configurazione Stable Diffusion WebUI con Docker"
 
@@ -284,7 +284,30 @@ SD_HOME="$USER_HOME/stable-diffusion"
 mkdir -p "$SD_HOME/data"
 
 # -------------------------------------------------------------------------
-# Configurazione Docker runtime NVIDIA
+# Installazione NVIDIA Container Toolkit (se mancante)
+# -------------------------------------------------------------------------
+if ! command -v nvidia-container-runtime &>/dev/null; then
+    log "🛠️ NVIDIA Container Toolkit non trovato. Installazione in corso..."
+
+    # Aggiungi repository NVIDIA
+    distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+    curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-docker.gpg
+    curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | \
+        sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-docker.gpg] https://#g' | \
+        sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+
+    sudo apt update
+    sudo apt install -y nvidia-docker2
+
+    # Riavvia Docker per applicare il runtime NVIDIA
+    sudo systemctl restart docker
+    log "✅ NVIDIA Container Toolkit installato correttamente"
+else
+    log "✅ NVIDIA Container Toolkit già presente"
+fi
+
+# -------------------------------------------------------------------------
+# Configurazione Docker runtime NVIDIA se assente
 # -------------------------------------------------------------------------
 if [ ! -f /etc/docker/daemon.json ]; then
   log "⚙️ Creazione /etc/docker/daemon.json per runtime NVIDIA..."
@@ -305,18 +328,10 @@ else
 fi
 
 # -------------------------------------------------------------------------
-# Verifica NVIDIA Container Toolkit
+# Verifica GPU tramite Docker
 # -------------------------------------------------------------------------
-if ! command -v nvidia-container-runtime &>/dev/null; then
-  log "🛠️ Installazione NVIDIA Container Toolkit..."
-  sudo apt update
-  sudo apt install -y nvidia-container-toolkit
-  sudo systemctl restart docker
-fi
-
-# Controlla se Docker vede la GPU
 if ! sudo docker run --rm --gpus all nvidia/cuda:12.1.105-base-ubuntu22.04 nvidia-smi &>/dev/null; then
-  log "❌ Errore: Docker non rileva GPU. Controlla driver NVIDIA e nvidia-container-toolkit."
+  log "❌ Errore: Docker non rileva GPU. Controlla driver NVIDIA e nvidia-docker2."
   exit 1
 fi
 log "✅ Docker rileva correttamente la GPU"
@@ -327,30 +342,38 @@ log "✅ Docker rileva correttamente la GPU"
 log "⬇️ Pull immagine Docker stable-diffusion-webui..."
 sudo docker pull universonic/stable-diffusion-webui:latest
 
+# -------------------------------------------------------------------------
 # Se il container esiste, fermalo e rimuovilo
+# -------------------------------------------------------------------------
 if sudo docker ps -a --format '{{.Names}}' | grep -q "^sd-webui$"; then
     log "🔄 Container sd-webui già esistente, fermo e rimuovo..."
     sudo docker stop sd-webui
     sudo docker rm sd-webui
 fi
 
+# -------------------------------------------------------------------------
 # Avvio container con REST API e listen su tutte le interfacce
+# -------------------------------------------------------------------------
 log "▶️ Avvio container sd-webui con --api --listen..."
 sudo docker run -d \
     --name sd-webui \
     --gpus all \
+    --restart always \
     -p 7860:7860 \
     -v "$SD_HOME/data:/data" \
     universonic/stable-diffusion-webui:latest \
     --api --listen
 
+# -------------------------------------------------------------------------
 # Verifica container
+# -------------------------------------------------------------------------
 sleep 5
 if sudo docker ps --format '{{.Names}}' | grep -q "^sd-webui$"; then
     log "✅ Stable Diffusion WebUI attivo su http://<server>:7860"
 else
     log "⚠️ Errore: container sd-webui non avviato correttamente"
 fi
+
 
 
 # # -------------------------------------------------------------------------
