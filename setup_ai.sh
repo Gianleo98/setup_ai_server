@@ -298,7 +298,7 @@ fi
 log "🖼️ Verifica Stable Diffusion..."
 SD_DIR="$USER_HOME/stable-diffusion-webui"
 
-# 1️⃣ Installa pacchetti Python essenziali
+# 1️⃣ Installa pacchetti Python essenziali corretti
 log "🧠 Verifica pacchetti Python essenziali..."
 REQUIRED_PY_PKGS=(python3-venv python3-pip python3-distutils python3-setuptools git)
 for pkg in "${REQUIRED_PY_PKGS[@]}"; do
@@ -306,6 +306,7 @@ for pkg in "${REQUIRED_PY_PKGS[@]}"; do
         log "✅ Pacchetto $pkg già installato."
     else
         log "🛠️ Installazione pacchetto $pkg..."
+        sudo apt update
         sudo apt install -y "$pkg"
     fi
 done
@@ -334,25 +335,24 @@ fi
 # 5️⃣ Creazione virtual environment
 log "🛠️ Creazione virtual environment..."
 python3 -m venv venv
+
+# 6️⃣ Attiva venv e aggiorna pip
 source venv/bin/activate
 pip install --upgrade pip setuptools wheel
 
-# 6️⃣ Avvio immediato WebUI in background
+# 7️⃣ Avvio immediato WebUI in background
 log "▶️ Avvio Stable Diffusion WebUI in background..."
 nohup ./webui.sh --listen --api --port 7860 >> "$USER_HOME/webui.log" 2>&1 &
 
 log "✅ Stable Diffusion WebUI avviato. Log: $USER_HOME/webui.log"
 
-# 7️⃣ Configurazione avvio automatico via cron se non già presente
+# 8️⃣ Configurazione avvio automatico via cron se non già presente
 if ! crontab -l | grep -q "stable-diffusion-webui"; then
     log "⚙️ Configurazione avvio automatico Stable Diffusion..."
     (crontab -l 2>/dev/null; echo "@reboot cd $SD_DIR && ./webui.sh --listen --api --port 7860 >> $USER_HOME/webui.log 2>&1") | crontab -
 else
     log "✅ Avvio automatico Stable Diffusion già configurato."
 fi
-
-
-
 
 
 # # -------------------------------------------------------------------------
