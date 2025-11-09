@@ -274,136 +274,90 @@ else
 fi
 
 # -------------------------------------------------------------------------
-# 🎬 INSTALLAZIONE WAN 2.2 + SERVER REST API (robusta)
+# 🖼️ CARTELLA DATI PERSISTENTE
 # -------------------------------------------------------------------------
-log "🎬 Verifica installazione Wan 2.2..."
+USER_HOME="${HOME}"
+COMFY_HOME="$USER_HOME/comfyui"
+WAN_HOME="$USER_HOME/wan2.2"
 
-WAN_DIR="/opt/wan2.2"
-WAN_MODEL_DIR="$WAN_DIR/Wan2.2-T2V-A14B"
-WAN_SERVICE="/etc/systemd/system/wan-api.service"
-VENV_DIR="$WAN_DIR/venv"
+mkdir -p "$COMFY_HOME"
+mkdir -p "$WAN_HOME"
 
-# 1️⃣ Verifica se Wan 2.2 è già installato
-if [ -d "$WAN_DIR" ]; then
-  log "✅ Wan 2.2 già installato in $WAN_DIR."
-else
-  log "🛠️ Installazione Wan 2.2..."
-  sudo git clone https://github.com/Wan-Video/Wan2.2.git "$WAN_DIR"
-fi
+# -------------------------------------------------------------------------
+# 🔹 CREAZIONE docker-compose.yml
+# -------------------------------------------------------------------------
+DOCKER_COMPOSE_FILE="$COMFY_HOME/docker-compose.yml"
 
-# 2️⃣ Creazione virtualenv se non presente
-if [ ! -d "$VENV_DIR" ]; then
-  log "🧠 Creazione virtualenv in $VENV_DIR..."
-  python3 -m venv "$VENV_DIR"
-fi
-source "$VENV_DIR/bin/activate"
+log "📝 Creazione docker-compose.yml per ComfyUI + Wan 2.2"
 
-# Aggiorna pip, setuptools, wheel
-pip install --upgrade pip setuptools wheel
+cat > "$DOCKER_COMPOSE_FILE" <<EOF
+version: "3.8"
 
-# 3️⃣ Installa PyTorch compatibile con CUDA PRIMA delle altre librerie
-log "🛠️ Installazione PyTorch con CUDA..."
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+services:
+  comfyui:
+    image: ai-dock/comfyui:latest
+    container_name: comfyui
+    restart: unless-stopped
+    ports:
+      - "8090:8080"        # Web UI ComfyUI
+    volumes:
+      - "$COMFY_HOME:/ComfyUI"
+      - "/tmp:/tmp"        # opzionale, per swap/temp
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
-# 4️⃣ Installa le altre librerie richieste
-log "📦 Installazione librerie richieste da requirements.txt..."
-pip install --no-deps -r "$WAN_DIR/requirements.txt"
+  wan-api:
+    image: python:3.12-slim
+    container_name: wan-api
+    restart: unless-stopped
+    volumes:
+      - "$WAN_HOME:/opt/wan2.2"
+    working_dir: /opt/wan2.2
+    command: >
+      bash -c "pip install --upgrade pip &&
+               pip install -r requirements.txt &&
+               python3 -m uvicorn wan_api:app --host 0.0.0.0 --port 8500"
+    ports:
+      - "8500:8500"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - PYTHONUNBUFFERED=1
+EOF
 
-# Installa flash_attn separatamente
-log "🛠️ Installazione flash_attn..."
-pip install flash_attn
+# -------------------------------------------------------------------------
+# 🔹 AVVIO DEI CONTAINER
+# -------------------------------------------------------------------------
+log "🚀 Avvio container ComfyUI + Wan API..."
+cd "$COMFY_HOME"
+docker compose up -d
 
-# 5️⃣ Scarica il modello se non presente
-if [ -d "$WAN_MODEL_DIR" ]; then
-  log "✅ Modello Wan 2.2 già scaricato."
-else
-  log "⬇️ Download modello Wan 2.2 T2V-A14B..."
-  pip install "huggingface_hub[cli]" --upgrade
-  huggingface-cli download Wan-Video/Wan2.2-T2V-A14B --local-dir "$WAN_MODEL_DIR" || log "⚠️ Download fallito, verifica token HuggingFace."
-fi
-
-# 6️⃣ Creazione script REST API se non già presente
-WAN_API_FILE="$WAN_DIR/wan_api.py"
-if [ ! -f "$WAN_API_FILE" ]; then
-  log "🧩 Creazione script REST API Wan..."
-  sudo bash -c "cat > $WAN_API_FILE <<'EOF'
-from fastapi import FastAPI
-from pydantic import BaseModel
-import subprocess, uuid, os
-
-app = FastAPI()
-
-class GenerateRequest(BaseModel):
-    prompt: str
-    size: str = '480*270'
-    task: str = 't2v-A14B'
-    offload_model: bool = True
-
-@app.post('/generate')
-def generate_video(req: GenerateRequest):
-    output_id = str(uuid.uuid4())[:8]
-    output_path = f'output_{output_id}.mp4'
-    cmd = [
-        'python3', 'generate.py',
-        '--task', req.task,
-        '--ckpt_dir', './Wan2.2-T2V-A14B',
-        '--prompt', req.prompt,
-        '--size', req.size,
-        '--offload_model', str(req.offload_model),
-        '--convert_model_dtype',
-        '--output', output_path
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if os.path.exists(output_path):
-        return {'status': 'success', 'output': output_path}
-    else:
-        return {'status': 'error', 'details': result.stderr}
-EOF"
-fi
-
-# 7️⃣ Creazione servizio systemd
-if [ ! -f "$WAN_SERVICE" ]; then
-  log "🧩 Creazione servizio systemd wan-api..."
-  sudo bash -c "cat > $WAN_SERVICE <<EOF
-[Unit]
-Description=WAN 2.2 REST API Service
-After=network.target
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=$WAN_DIR
-ExecStart=$VENV_DIR/bin/uvicorn wan_api:app --host 0.0.0.0 --port 8500
-Restart=always
-Environment=PYTHONUNBUFFERED=1
-
-[Install]
-WantedBy=multi-user.target
-EOF"
-  sudo systemctl daemon-reload
-  sudo systemctl enable wan-api.service
-  log "✅ Servizio wan-api abilitato all'avvio."
-fi
-
-# 8️⃣ Avvio (o riavvio) del servizio
-if systemctl is-active --quiet wan-api.service; then
-  log "🔄 Riavvio servizio wan-api..."
-  sudo systemctl restart wan-api.service
-else
-  log "▶️ Avvio servizio wan-api..."
-  sudo systemctl start wan-api.service
-fi
-
-# 9️⃣ Verifica
 sleep 5
-if curl -fs http://127.0.0.1:8500/docs &>/dev/null; then
-  log "✅ Servizio Wan API attivo su http://<server>:8500"
+
+# -------------------------------------------------------------------------
+# 🔹 VERIFICA
+# -------------------------------------------------------------------------
+if docker ps --format '{{.Names}}' | grep -q "comfyui"; then
+  log "✅ ComfyUI attivo su http://localhost:8090"
 else
-  log "⚠️ Wan API non risponde, controlla con: journalctl -u wan-api -f"
+  log "⚠️ ComfyUI non avviato correttamente"
 fi
 
-# Mantieni virtualenv attivo fino alla fine dello script
-log "✅ Installazione completata. Virtualenv attivo: $VENV_DIR"
+if docker ps --format '{{.Names}}' | grep -q "wan-api"; then
+  log "✅ Wan API attivo su http://localhost:8500"
+else
+  log "⚠️ Wan API non avviato correttamente"
+fi
 
 
 # # -------------------------------------------------------------------------
