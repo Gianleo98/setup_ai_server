@@ -278,18 +278,12 @@ fi
 # -------------------------------------------------------------------------
 COMFY_DIR="$USER_HOME/ComfyUI"
 VENV_DIR="$COMFY_DIR/venv"
+log "🖼️ Installazione ComfyUI in locale con GPU..."
 
-log "🖼️ Installazione ComfyUI in locale con supporto GPU..."
-
-# 1️⃣ Creazione cartella e ambiente virtuale
-mkdir -p "$COMFY_DIR"
-python3 -m venv "$VENV_DIR"
-source "$VENV_DIR/bin/activate"
-
-# 2️⃣ Clonazione repository ComfyUI
+# Clonazione repository
 if [ ! -d "$COMFY_DIR/.git" ]; then
     if [ -d "$COMFY_DIR" ]; then
-        log "⚠️ Cartella ComfyUI esiste ma non è un repository git. Rinominazione..."
+        log "⚠️ Cartella ComfyUI esiste ma non è un repo git. Rinominazione..."
         mv "$COMFY_DIR" "${COMFY_DIR}_backup_$(date +%s)"
     fi
     log "📥 Clonazione repository ComfyUI..."
@@ -300,17 +294,22 @@ else
     git pull
 fi
 
-# 3️⃣ Aggiorna pip e installa PyTorch con CUDA
+# Creazione virtual environment e attivazione
+python3 -m venv "$VENV_DIR"
+source "$VENV_DIR/bin/activate"
+
+# Aggiornamento pip e installazione PyTorch + CUDA
 log "🧠 Installazione PyTorch + CUDA..."
 pip install --upgrade pip
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
-# 4️⃣ Installazione dipendenze ComfyUI
+# Installazione dipendenze ComfyUI
 log "📦 Installazione dipendenze ComfyUI..."
+cd "$COMFY_DIR"
 pip install -r requirements.txt
 
-# 5️⃣ Avvio ComfyUI su porta 8188
-log "▶️ Avvio ComfyUI (puoi accedere da http://<server>:8188)..."
+# Avvio ComfyUI
+log "▶️ Avvio ComfyUI (http://<server>:8188)..."
 nohup python main.py --listen --port 8188 > "$COMFY_DIR/comfyui.log" 2>&1 &
 
 
