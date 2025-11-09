@@ -276,48 +276,54 @@ fi
 # -----------------------------
 # 🎯 CONFIGURAZIONE COMFYUI + WAN 2.2
 # -----------------------------
-COMFY_REPO="$USER_HOME/ComfyUI"
+COMFY_REPO="$USER_HOME/ComfyUI"  # percorso repository ComfyUI
 VENV_DIR="$COMFY_REPO/venv"
 WAN_DIR="$COMFY_REPO/WAN2.2"
 
-log "🖼️ Installazione ComfyUI + WAN 2.2 senza chiedere credenziali"
+log "🖼️ Configurazione ComfyUI + WAN 2.2"
 
-# 1️⃣ ComfyUI
-if [ -d "$COMFY_REPO" ]; then
-    echo "⚠️ Cartella ComfyUI già esistente, elimino per evitare problemi di autenticazione..."
-    rm -rf "$COMFY_REPO"
+# 1️⃣ Clonazione ComfyUI se non presente
+if [ ! -d "$COMFY_REPO/.git" ]; then
+    echo "📥 Clonazione ComfyUI..."
+    git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFY_REPO"
+else
+    echo "🔄 Repository ComfyUI già presente, aggiorno..."
+    cd "$COMFY_REPO"
+    git pull
 fi
-echo "📥 Clonazione ComfyUI..."
-git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFY_REPO"
 
-# 2️⃣ Virtualenv
+# 2️⃣ Creazione e attivazione virtualenv
 python3 -m venv "$VENV_DIR"
 source "$VENV_DIR/bin/activate"
 echo "🔹 Virtualenv attivato"
 
-# 3️⃣ PyTorch + dipendenze
+# 3️⃣ Installazione PyTorch + CUDA
 pip install --upgrade pip
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-pip install -r "$COMFY_REPO/requirements.txt"
 
-# 4️⃣ WAN 2.2
-if [ -d "$WAN_DIR" ]; then
-    echo "⚠️ Cartella WAN 2.2 già esistente, elimino per evitare problemi di autenticazione..."
-    rm -rf "$WAN_DIR"
+# 4️⃣ Installazione dipendenze ComfyUI
+pip install -r requirements.txt
+
+# 5️⃣ Clonazione WAN 2.2
+if [ ! -d "$WAN_DIR/.git" ]; then
+    echo "📥 Clonazione WAN 2.2..."
+    git clone https://github.com/AI-Workshop/WAN-2.2.git "$WAN_DIR"
+else
+    echo "🔄 WAN 2.2 già presente, aggiorno..."
+    cd "$WAN_DIR"
+    git pull
 fi
-echo "📥 Clonazione WAN 2.2..."
-git clone https://github.com/AI-Workshop/WAN-2.2.git "$WAN_DIR"
 
-# 5️⃣ Copia nodi e workflow
+# 6️⃣ Copia nodi e workflow in ComfyUI
 mkdir -p "$COMFY_REPO/modules"
 cp -r "$WAN_DIR/modules/." "$COMFY_REPO/modules/" || true
 mkdir -p "$COMFY_REPO/workflows"
 cp -r "$WAN_DIR/workflows/." "$COMFY_REPO/workflows/" || true
 
-# 6️⃣ Avvio ComfyUI con WAN 2.2
-cd "$COMFY_REPO"
+# 7️⃣ Avvio ComfyUI con WAN 2.2
 nohup python main.py --listen --port 8188 > "$COMFY_REPO/comfyui_wan.log" 2>&1 &
 log "✅ ComfyUI + WAN 2.2 avviato su http://<server>:8188"
+
 
 
 # # -------------------------------------------------------------------------
