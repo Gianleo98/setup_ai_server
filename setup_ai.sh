@@ -292,6 +292,18 @@ else
   echo 'eval "$(pyenv init - bash)"' >> ~/.bashrc
 fi
 
+# Assicurati che python3-venv e pip siano presenti
+log "🧠 Verifica pacchetti Python essenziali..."
+REQUIRED_PY_PKGS=(python3-venv python3-pip)
+for pkg in "${REQUIRED_PY_PKGS[@]}"; do
+    if dpkg -l | grep -qw "$pkg"; then
+        log "✅ Pacchetto $pkg già installato."
+    else
+        log "🛠️ Installazione pacchetto $pkg..."
+        sudo apt install -y "$pkg"
+    fi
+done
+
 # -------------------------------------------------------------------------
 # 🖼️ STABLE DIFFUSION
 # -------------------------------------------------------------------------
