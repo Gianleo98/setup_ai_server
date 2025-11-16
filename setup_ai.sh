@@ -395,12 +395,31 @@ fi
 # -------------------------------------------------------------------------
 # 🛠️ Installazione Wan2GP
 # -------------------------------------------------------------------------
-log "🚀 Clonazione/aggiornamento repository Wan2GP..."
+log "🔹 Verifico Python 3.10..."
+if ! python3.10 --version &>/dev/null; then
+    log "⬇️ Installo Python 3.10..."
+    sudo apt update
+    sudo apt install -y python3.10 python3.10-dev python3.10-distutils python3.10-venv
+else
+    log "✅ Python 3.10 già presente: $(python3.10 --version)"
+fi
+
+# ----------------------------
+# Aggiorno pip
+# ----------------------------
+log "⬆️ Aggiorno pip..."
+python3.10 -m ensurepip --upgrade
+python3.10 -m pip install --upgrade pip
+
+# ----------------------------
+# Clona o aggiorna repository Wan2GP
+# ----------------------------
 cd ~
 if [ ! -d "Wan2GP" ]; then
+    log "🔽 Clono repository Wan2GP..."
     git clone https://github.com/deepbeepmeep/Wan2GP.git
 else
-    log "🔄 Repository già presente, aggiornamento..."
+    log "🔄 Repository Wan2GP già presente, aggiorno..."
     cd Wan2GP
     git pull
     cd ..
@@ -409,32 +428,22 @@ fi
 cd ~/Wan2GP
 
 # ----------------------------
-# Ambiente virtuale
-# ----------------------------
-log "📦 Creazione ambiente virtuale Python 3.12..."
-python3 -m venv venv
-source venv/bin/activate
-
-log "⬆️ Aggiornamento pip..."
-pip install --upgrade pip
-
-# ----------------------------
-# Installazione PyTorch compatibile RTX 2060 Super
+# Installazione PyTorch compatibile RTX 2060 Super (CUDA 11.7)
 # ----------------------------
 log "⬇️ Installazione PyTorch compatibile con CUDA 11.7..."
-pip install torch==2.7.1+cu117 torchvision==0.15.2+cu117 torchaudio==2.0.2 --extra-index-url https://download.pytorch.org/whl/cu117
+python3.10 -m pip install torch==2.7.1+cu117 torchvision==0.15.2+cu117 torchaudio==2.0.2 --extra-index-url https://download.pytorch.org/whl/cu117
 
 # ----------------------------
-# Dipendenze Wan2GP
+# Installazione dipendenze Wan2GP
 # ----------------------------
 log "⬇️ Installazione dipendenze Wan2GP..."
-pip install -r requirements.txt
+python3.10 -m pip install -r requirements.txt
 
 # ----------------------------
 # Avvio Wan2GP
 # ----------------------------
 log "🚀 Avvio Wan2GP sulla porta di default..."
-nohup python wgp.py > ~/Wan2GP/wan2gp.log 2>&1 &
+nohup python3.10 wgp.py > ~/Wan2GP/wan2gp.log 2>&1 &
 
 log "✅ Wan2GP avviato: http://<server>:7860"
 
