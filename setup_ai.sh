@@ -318,7 +318,7 @@ fi
 # ----------------------------
 if [ ! -d "$USER_HOME/Fooocus" ]; then
     log "🔽 Clono repository Fooocus..."
-    git clone https://github.com/lllyasviel/Fooocus.git "$USER_HOME/Fooocus"
+    git clone https://github.com/lllyasviel/Fooocus.git
 else
     log "🔄 Pull aggiornamenti Fooocus..."
     cd "$USER_HOME/Fooocus"
@@ -326,47 +326,71 @@ else
 fi
 
 cd "$USER_HOME/Fooocus"
-pyenv local 3.10.13
 
-# ----------------------------
-# venv
-# ----------------------------
-if [ ! -d "$USER_HOME/Fooocus/fooocus_env" ]; then
-    log "📦 Creo ambiente virtuale..."
-    python3 -m venv "$USER_HOME/Fooocus/fooocus_env"
-fi
-
-log "📌 Attivo venv..."
-source "$USER_HOME/Fooocus/fooocus_env/bin/activate"
-
-# ----------------------------
-# Install requirements
-# ----------------------------
-log "⬇️ Installo requirements..."
-pip install --upgrade pip wheel setuptools
+python3 -m venv fooocus_env
+source fooocus_env/bin/activate
 pip install -r requirements_versions.txt
 
 # ----------------------------
 # Avvio Fooocus in background con nohup
 # ----------------------------
-log "🚀 Avvio Fooocus in background sulla porta 7865..."
-
-# Attivo l’ambiente
-source "$USER_HOME/Fooocus/fooocus_env/bin/activate"
+log "🚀 Avvio Fooocus in background sulla porta 7865"
 
 nohup python entry_with_update.py --listen > "$USER_HOME/Fooocus/fooocus.log" 2>&1 &
-
-sleep 2
 
 log "🎉 Fooocus avviato in background!"
 log "📄 Log file: $USER_HOME/Fooocus/fooocus.log"
 
-IP=$(hostname -I | awk '{print $1}')
+# -------------------------------------------------------------------------
+# 🔁 SERVIZIO SYSTEMD PER AVVIARE FOOOCUS AL REBOOT
+# -------------------------------------------------------------------------
+log "🛠️ Creazione servizio systemd per Fooocus..."
 
-echo "-----------------------------------------------------"
-echo "Fooocus disponibile su:"
-echo "👉 http://$IP:7865"
-echo "-----------------------------------------------------"
+# Script launcher eseguibile
+sudo bash -c "cat > /usr/local/bin/start_fooocus.sh <<EOF
+#!/bin/bash
+cd \"$USER_HOME/Fooocus\"
+source \"$USER_HOME/Fooocus/fooocus_env/bin/activate\"
+nohup python entry_with_update.py --listen > \"$USER_HOME/Fooocus/fooocus.log\" 2>&1 &
+EOF"
+
+sudo chmod +x /usr/local/bin/start_fooocus.sh
+
+# Determina l'utente reale per systemd
+if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
+  FOOOCUS_USER="$SUDO_USER"
+else
+  FOOOCUS_USER=$(whoami)
+fi
+
+# Servizio systemd
+sudo bash -c "cat > /etc/systemd/system/fooocus.service <<EOF
+[Unit]
+Description=Fooocus Stable Diffusion WebUI
+After=network.target
+
+[Service]
+Type=simple
+User=$FOOOCUS_USER
+WorkingDirectory=$USER_HOME/Fooocus
+ExecStart=/usr/local/bin/start_fooocus.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF"
+
+# Ricarica systemd e abilita servizio
+sudo systemctl daemon-reload
+sudo systemctl enable fooocus.service
+sudo systemctl restart fooocus.service
+
+log '🎉 Servizio Fooocus installato e avviato!'
+echo '--------------------------------------------------------'
+echo "Fooocus sarà avviato automaticamente a ogni reboot."
+echo "👉 URL: http://$(hostname -I | awk '{print $1}'):7865"
+echo '--------------------------------------------------------'
 
 
 # -------------------------------------------------------------------------
