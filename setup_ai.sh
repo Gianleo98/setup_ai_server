@@ -282,95 +282,169 @@ else
     ghcr.io/open-webui/open-webui:main
 fi
 
-# -----------------------------
-# 🎯 CONFIGURAZIONE COMFYUI + WAN 2.2
-# -----------------------------
-COMFY_REPO="$USER_HOME/ComfyUI"  # percorso repository ComfyUI
-VENV_DIR="$COMFY_REPO/venv"
-WAN_DIR="$COMFY_REPO/WAN2.2"
+# # -----------------------------
+# # 🎯 CONFIGURAZIONE COMFYUI + WAN 2.2
+# # -----------------------------
+# COMFY_REPO="$USER_HOME/ComfyUI"  # percorso repository ComfyUI
+# VENV_DIR="$COMFY_REPO/venv"
+# WAN_DIR="$COMFY_REPO/WAN2.2"
 
-log "🖼️ Configurazione ComfyUI + WAN 2.2"
+# log "🖼️ Configurazione ComfyUI + WAN 2.2"
 
-# 1️⃣ Clonazione ComfyUI se non presente
-if [ ! -d "$COMFY_REPO/.git" ]; then
-    echo "📥 Clonazione ComfyUI..."
-    git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFY_REPO"
+# # 1️⃣ Clonazione ComfyUI se non presente
+# if [ ! -d "$COMFY_REPO/.git" ]; then
+#     echo "📥 Clonazione ComfyUI..."
+#     git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFY_REPO"
+# else
+#     echo "🔄 Repository ComfyUI già presente, aggiorno..."
+#     cd "$COMFY_REPO"
+#     git pull
+# fi
+
+# # 2️⃣ Creazione e attivazione virtualenv
+# python3 -m venv "$VENV_DIR"
+# source "$VENV_DIR/bin/activate"
+# echo "🔹 Virtualenv attivato"
+
+# # 3️⃣ Installazione PyTorch + CUDA
+# pip install --upgrade pip
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# # 4️⃣ Installazione dipendenze ComfyUI
+# pip install -r requirements.txt
+
+# # 5️⃣ Clona WAN 2.2 usando il token (se necessario)
+# GITHUB_TOKEN=$(cat "$USER_HOME/.github_token")
+# if [ ! -d "$WAN_DIR" ]; then
+#     git clone https://$GITHUB_TOKEN@github.com/Wan-Video/Wan2.2.git "$WAN_DIR"
+# else
+#     echo "🔄 WAN 2.2 già presente, aggiorno..."
+#     cd "$WAN_DIR"
+#     git pull
+# fi
+
+# # 6️⃣ Copia cartella 'wan' in ComfyUI
+# if [ -d "$WAN_DIR/wan" ]; then
+#     mkdir -p "$COMFY_REPO/wan"
+#     cp -r "$WAN_DIR/wan/." "$COMFY_REPO/wan/"
+#     echo "✅ Cartella WAN copiata in ComfyUI"
+# else
+#     echo "⚠️ Nessuna cartella 'wan' trovata in WAN2.2"
+# fi
+
+# # 7️⃣ Copia esempi (opzionale)
+# if [ -d "$WAN_DIR/examples" ]; then
+#     mkdir -p "$COMFY_REPO/examples"
+#     cp -r "$WAN_DIR/examples/." "$COMFY_REPO/examples/"
+#     echo "✅ Esempi WAN copiati in ComfyUI"
+# fi
+
+# # 8️⃣ Avvio ComfyUI
+# cd "$COMFY_REPO"
+# nohup python main.py --listen --port 8188 > "$COMFY_REPO/comfyui_wan.log" 2>&1 &
+# log "✅ ComfyUI + WAN 2.2 avviato su http://<server>:8188"
+
+# # -------------------------------------------------------------------------
+# # 🔧 SERVIZIO SYSTEMD PER AVVIO AUTOMATICO COMFYUI
+# # -------------------------------------------------------------------------
+
+# log "🔧 Creazione servizio systemd per ComfyUI..."
+
+# # Determina l'utente reale
+# if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
+#   REAL_USER="$SUDO_USER"
+# else
+#   REAL_USER="$USER"
+# fi
+
+# REAL_HOME=$(eval echo ~"$REAL_USER")
+
+# SERVICE_PATH="/etc/systemd/system/comfyui.service"
+
+# sudo bash -c "cat > $SERVICE_PATH" <<EOF
+# [Unit]
+# Description=ComfyUI Service
+# After=network.target
+
+# [Service]
+# Type=simple
+# User=$REAL_USER
+# WorkingDirectory=$REAL_HOME/ComfyUI
+# ExecStart=$REAL_HOME/ComfyUI/venv/bin/python main.py --listen --port 8188
+# Restart=always
+# RestartSec=5
+
+# [Install]
+# WantedBy=multi-user.target
+# EOF
+
+# log "📦 Servizio comfyui.service creato."
+
+# # Abilita il linger per permettere all'utente di eseguire servizi al boot
+# sudo loginctl enable-linger "$REAL_USER"
+
+# # Ricarica systemd + abilita + avvia
+# sudo systemctl daemon-reload
+# sudo systemctl enable comfyui.service
+# sudo systemctl restart comfyui.service
+
+# log "✅ Servizio ComfyUI installato e attivo."
+# log "🌐 ComfyUI partirà automaticamente al prossimo riavvio su http://<server>:8188"
+
+
+# -------------------------------------------------------------------------
+# 🛠️ Installazione Wan2GP
+# -------------------------------------------------------------------------
+log "🚀 Clonazione repository Wan2GP..."
+cd ~
+if [ ! -d "Wan2GP" ]; then
+  git clone https://github.com/deepbeepmeep/Wan2GP.git
 else
-    echo "🔄 Repository ComfyUI già presente, aggiorno..."
-    cd "$COMFY_REPO"
-    git pull
+  log "🔄 Repository Wan2GP già presente: aggiorno..."
+  cd Wan2GP
+  git pull
+  cd ..
 fi
 
-# 2️⃣ Creazione e attivazione virtualenv
-python3 -m venv "$VENV_DIR"
-source "$VENV_DIR/bin/activate"
-echo "🔹 Virtualenv attivato"
+cd ~/Wan2GP
 
-# 3️⃣ Installazione PyTorch + CUDA
+log "📦 Creazione ambiente virtuale Python..."
+python3 -m venv venv
+source venv/bin/activate
+
+log "⬇️ Installazione dipendenze..."
 pip install --upgrade pip
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-
-# 4️⃣ Installazione dipendenze ComfyUI
+pip install torch==2.7.1 torchvision torchaudio --index-url https://download.pytorch.org/whl/test/cu128  # come indicato nel README :contentReference[oaicite:2]{index=2}
 pip install -r requirements.txt
 
-# 5️⃣ Clona WAN 2.2 usando il token (se necessario)
-GITHUB_TOKEN=$(cat "$USER_HOME/.github_token")
-if [ ! -d "$WAN_DIR" ]; then
-    git clone https://$GITHUB_TOKEN@github.com/Wan-Video/Wan2.2.git "$WAN_DIR"
-else
-    echo "🔄 WAN 2.2 già presente, aggiorno..."
-    cd "$WAN_DIR"
-    git pull
-fi
+# -------------------------------------------------------------------------
+# 🔧 Avvio Wan2GP
+# -------------------------------------------------------------------------
+log "🚀 Avvio Wan2GP..."
+nohup python wgp.py --host 0.0.0.0 --port 9000 > ~/Wan2GP/wan2gp.log 2>&1 &
 
-# 6️⃣ Copia cartella 'wan' in ComfyUI
-if [ -d "$WAN_DIR/wan" ]; then
-    mkdir -p "$COMFY_REPO/wan"
-    cp -r "$WAN_DIR/wan/." "$COMFY_REPO/wan/"
-    echo "✅ Cartella WAN copiata in ComfyUI"
-else
-    echo "⚠️ Nessuna cartella 'wan' trovata in WAN2.2"
-fi
-
-# 7️⃣ Copia esempi (opzionale)
-if [ -d "$WAN_DIR/examples" ]; then
-    mkdir -p "$COMFY_REPO/examples"
-    cp -r "$WAN_DIR/examples/." "$COMFY_REPO/examples/"
-    echo "✅ Esempi WAN copiati in ComfyUI"
-fi
-
-# 8️⃣ Avvio ComfyUI
-cd "$COMFY_REPO"
-nohup python main.py --listen --port 8188 > "$COMFY_REPO/comfyui_wan.log" 2>&1 &
-log "✅ ComfyUI + WAN 2.2 avviato su http://<server>:8188"
+log "✅ Wan2GP avviato: http://<server>:9000"
 
 # -------------------------------------------------------------------------
-# 🔧 SERVIZIO SYSTEMD PER AVVIO AUTOMATICO COMFYUI
+# 🔄 Servizio systemd per avvio automatico
 # -------------------------------------------------------------------------
-
-log "🔧 Creazione servizio systemd per ComfyUI..."
-
-# Determina l'utente reale
-if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
-  REAL_USER="$SUDO_USER"
-else
-  REAL_USER="$USER"
-fi
-
+REAL_USER="${SUDO_USER:-$USER}"
 REAL_HOME=$(eval echo ~"$REAL_USER")
 
-SERVICE_PATH="/etc/systemd/system/comfyui.service"
+SERVICE_PATH="/etc/systemd/system/wan2gp.service"
 
-sudo bash -c "cat > $SERVICE_PATH" <<EOF
+log "🔧 Creazione servizio systemd wan2gp.service..."
+
+sudo bash -c "cat > ${SERVICE_PATH}" <<EOF
 [Unit]
-Description=ComfyUI Service
+Description=Wan2GP Service
 After=network.target
 
 [Service]
 Type=simple
-User=$REAL_USER
-WorkingDirectory=$REAL_HOME/ComfyUI
-ExecStart=$REAL_HOME/ComfyUI/venv/bin/python main.py --listen --port 8188
+User=${REAL_USER}
+WorkingDirectory=${REAL_HOME}/Wan2GP
+ExecStart=${REAL_HOME}/Wan2GP/venv/bin/python ${REAL_HOME}/Wan2GP/wgp.py --host 0.0.0.0 --port 9000
 Restart=always
 RestartSec=5
 
@@ -378,18 +452,12 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
-log "📦 Servizio comfyui.service creato."
-
-# Abilita il linger per permettere all'utente di eseguire servizi al boot
-sudo loginctl enable-linger "$REAL_USER"
-
-# Ricarica systemd + abilita + avvia
+log "📌 Abilito e avvio il servizio..."
 sudo systemctl daemon-reload
-sudo systemctl enable comfyui.service
-sudo systemctl restart comfyui.service
+sudo systemctl enable wan2gp.service
+sudo systemctl restart wan2gp.service
 
-log "✅ Servizio ComfyUI installato e attivo."
-log "🌐 ComfyUI partirà automaticamente al prossimo riavvio su http://<server>:8188"
+log "✅ Servizio Wan2GP installato e attivo."
 
 
 # # -------------------------------------------------------------------------
