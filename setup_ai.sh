@@ -460,8 +460,8 @@ sudo systemctl restart wan2gp.service
 log "✅ Servizio Wan2GP installato e attivo."
 
 
-# # -------------------------------------------------------------------------
-# # 🔁 REBOOT FINALE
-# # -------------------------------------------------------------------------
-log "✅ Setup completato. Riavvio per applicare le modifiche..."
-sudo reboot
+# -------------------------------------------------------------------------
+# 🔁 REBOOT FINALE
+# -------------------------------------------------------------------------
+# log "✅ Setup completato. Riavvio per applicare le modifiche..."
+# sudo reboot
