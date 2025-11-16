@@ -547,7 +547,7 @@ log "🎉 NVIDIA Container Toolkit pronto."
 # -------------------------------------------------------------------------
 # 🐋 Clona Wan2GP e avvia script ufficiale Docker
 # -------------------------------------------------------------------------
-WAN_DIR="$HOME/Wan2GP"
+WAN_DIR="$USER_HOME/Wan2GP"
 
 if [ ! -d "$WAN_DIR" ]; then
     log "📥 Clonazione Wan2GP..."
