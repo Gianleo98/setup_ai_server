@@ -317,11 +317,11 @@ cd ~/Fooocus
 # ----------------------------
 # Crea ambiente Conda fooocus
 # ----------------------------
-if ! conda env list | grep -q "fooocus"; then
-    log "📦 Creo ambiente Conda fooocus e accetto Terms of Service automaticamente..."
-    yes | conda env create -f environment.yaml
-else
+if conda env list | grep -q "^fooocus"; then
     log "✅ Ambiente Conda fooocus già presente"
+else
+    log "📦 Creo ambiente Conda fooocus..."
+    conda env create -f environment.yaml
 fi
 
 # ----------------------------
