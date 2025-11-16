@@ -483,9 +483,9 @@ fi
 
 # log "✅ Servizio Wan2GP installato e attivo sulla rete locale."
 
-echo "==============================================="
-echo " 🔧 FIX DOCKER + NVIDIA GPU (Ubuntu/Debian)"
-echo "==============================================="
+# ===============================================
+# 🔧 FIX DOCKER + NVIDIA GPU (Ubuntu/Debian)
+# ===============================================
 
 echo "➡️ 1. Rimuovo configurazioni NVIDIA Docker danneggiate..."
 sudo apt remove -y nvidia-docker2 nvidia-container-toolkit &>/dev/null
