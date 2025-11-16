@@ -283,25 +283,26 @@ else
 fi
 
 
-# -------------------------------------------------------------------------
-# 🔹 Installazione Miniconda se non presente
-# -------------------------------------------------------------------------
+# ----------------------------
+# Installa Miniconda se non presente
+# ----------------------------
 if ! command -v conda &>/dev/null; then
-    log "⬇️ Scarico Miniconda..."
-    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh
-    log "⚙️ Installazione Miniconda..."
-    bash ~/miniconda.sh -b -p $HOME/miniconda
-    export PATH="$HOME/miniconda/bin:$PATH"
-    eval "$($HOME/miniconda/bin/conda shell.bash hook)"
+    log "🔽 Scarico e installo Miniconda..."
+    wget -O ~/miniconda.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+    bash ~/miniconda.sh -b -p $HOME/miniconda3
+
+    # Aggiungi Miniconda al PATH nel profilo shell
+    echo 'export PATH="$HOME/miniconda3/bin:$PATH"' >> ~/.bashrc
+    export PATH="$HOME/miniconda3/bin:$PATH"
+
     log "✅ Miniconda installata"
 else
     log "✅ Miniconda già installata"
-    eval "$(conda shell.bash hook)"
 fi
 
-# -------------------------------------------------------------------------
-# 🔹 Clona o aggiorna repository Fooocus
-# -------------------------------------------------------------------------
+# ----------------------------
+# Clona repository Fooocus
+# ----------------------------
 cd ~
 if [ ! -d "Fooocus" ]; then
     log "🔽 Clono repository Fooocus..."
@@ -313,34 +314,37 @@ else
 fi
 cd ~/Fooocus
 
-# -------------------------------------------------------------------------
-# 🔹 Crea e attiva ambiente Conda
-# -------------------------------------------------------------------------
+# ----------------------------
+# Crea ambiente Conda fooocus
+# ----------------------------
 if ! conda env list | grep -q "fooocus"; then
-    log "📦 Creo ambiente Conda fooocus..."
-    conda env create -f environment.yaml
+    log "📦 Creo ambiente Conda fooocus e accetto Terms of Service automaticamente..."
+    yes | conda env create -f environment.yaml
 else
     log "✅ Ambiente Conda fooocus già presente"
 fi
+
+# ----------------------------
+# Attiva ambiente e installa dipendenze aggiuntive
+# ----------------------------
+eval "$(conda shell.bash hook)"
 conda activate fooocus
 
-# -------------------------------------------------------------------------
-# 🔹 Installa eventuali pacchetti aggiuntivi richiesti
-# -------------------------------------------------------------------------
-pip install --upgrade pip
+log "⬆️ Aggiorno pip, setuptools e wheel dentro ambiente..."
+pip install --upgrade pip setuptools wheel
+
 if [ -f "requirements_versions.txt" ]; then
-    log "⬇️ Installazione pacchetti da requirements_versions.txt..."
+    log "⬇️ Installazione requirements_versions.txt..."
     pip install -r requirements_versions.txt
 fi
 
-# -------------------------------------------------------------------------
-# 🔹 Download modelli (opzionale automatico)
-# -------------------------------------------------------------------------
-log "⚡ Avvio Fooocus per scaricare i modelli predefiniti..."
-python entry_with_update.py --listen --preset realistic &
+# ----------------------------
+# Avvio Fooocus con porta in ascolto sulla rete locale
+# ----------------------------
+log "🚀 Avvio Fooocus in ascolto sulla rete locale..."
+nohup python entry_with_update.py --listen > ~/Fooocus/fooocus.log 2>&1 &
 
-log "✅ Fooocus installato e in esecuzione sulla rete locale"
-log "🌐 Accedi da un altro PC usando: http://<IP_DEL_SERVER>:5000"
+log "✅ Fooocus avviato. Accessibile su http://<IP_SERVER>:7860"
 
 
 # -------------------------------------------------------------------------
