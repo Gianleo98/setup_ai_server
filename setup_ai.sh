@@ -398,18 +398,15 @@ fi
 # ----------------------------
 # Aggiungi PPA deadsnakes e installa Python 3.10
 # ----------------------------
+# ----------------------------
+# Aggiungi PPA deadsnakes e installa Python 3.10
+# ----------------------------
 log "🔹 Aggiungo PPA deadsnakes e installo Python 3.10..."
 sudo apt update
 sudo apt install -y software-properties-common
 sudo add-apt-repository -y ppa:deadsnakes/ppa
 sudo apt update
 sudo apt install -y python3.10 python3.10-dev python3.10-distutils python3-pip
-
-# ----------------------------
-# Aggiorna pip
-# ----------------------------
-log "⬆️ Aggiorno pip per Python 3.10..."
-python3.10 -m pip install --upgrade pip
 
 # ----------------------------
 # Clona o aggiorna repository Wan2GP
@@ -426,7 +423,7 @@ fi
 cd ~/Wan2GP
 
 # ----------------------------
-# Installazione PyTorch compatibile (CUDA 11.7)
+# Installazione PyTorch compatibile RTX 2060 Super (CUDA 11.7)
 # ----------------------------
 log "⬇️ Installazione PyTorch compatibile con CUDA 11.7..."
 python3.10 -m pip install torch==2.7.1+cu117 torchvision==0.15.2+cu117 torchaudio==2.0.2 --extra-index-url https://download.pytorch.org/whl/cu117
