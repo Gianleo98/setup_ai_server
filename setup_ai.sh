@@ -344,10 +344,56 @@ cd "$COMFY_REPO"
 nohup python main.py --listen --port 8188 > "$COMFY_REPO/comfyui_wan.log" 2>&1 &
 log "✅ ComfyUI + WAN 2.2 avviato su http://<server>:8188"
 
+# -------------------------------------------------------------------------
+# 🔧 SERVIZIO SYSTEMD PER AVVIO AUTOMATICO COMFYUI
+# -------------------------------------------------------------------------
+
+log "🔧 Creazione servizio systemd per ComfyUI..."
+
+# Determina l'utente reale
+if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
+  REAL_USER="$SUDO_USER"
+else
+  REAL_USER="$USER"
+fi
+
+REAL_HOME=$(eval echo ~"$REAL_USER")
+
+SERVICE_PATH="/etc/systemd/system/comfyui.service"
+
+sudo bash -c "cat > $SERVICE_PATH" <<EOF
+[Unit]
+Description=ComfyUI Service
+After=network.target
+
+[Service]
+Type=simple
+User=$REAL_USER
+WorkingDirectory=$REAL_HOME/ComfyUI
+ExecStart=$REAL_HOME/ComfyUI/venv/bin/python main.py --listen --port 8188
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+log "📦 Servizio comfyui.service creato."
+
+# Abilita il linger per permettere all'utente di eseguire servizi al boot
+sudo loginctl enable-linger "$REAL_USER"
+
+# Ricarica systemd + abilita + avvia
+sudo systemctl daemon-reload
+sudo systemctl enable comfyui.service
+sudo systemctl restart comfyui.service
+
+log "✅ Servizio ComfyUI installato e attivo."
+log "🌐 ComfyUI partirà automaticamente al prossimo riavvio su http://<server>:8188"
 
 
 # # -------------------------------------------------------------------------
 # # 🔁 REBOOT FINALE
 # # -------------------------------------------------------------------------
-# log "✅ Setup completato. Riavvio per applicare le modifiche..."
-# sudo reboot
+log "✅ Setup completato. Riavvio per applicare le modifiche..."
+sudo reboot
