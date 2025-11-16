@@ -395,31 +395,46 @@ fi
 # -------------------------------------------------------------------------
 # 🛠️ Installazione Wan2GP
 # -------------------------------------------------------------------------
-# Clona repo
+log "🚀 Clonazione/aggiornamento repository Wan2GP..."
 cd ~
 if [ ! -d "Wan2GP" ]; then
-  git clone https://github.com/deepbeepmeep/Wan2GP.git
+    git clone https://github.com/deepbeepmeep/Wan2GP.git
 else
-  cd Wan2GP
-  git pull
-  cd ..
+    log "🔄 Repository già presente, aggiornamento..."
+    cd Wan2GP
+    git pull
+    cd ..
 fi
 
 cd ~/Wan2GP
 
-# Virtualenv
+# ----------------------------
+# Ambiente virtuale
+# ----------------------------
+log "📦 Creazione ambiente virtuale Python 3.12..."
 python3 -m venv venv
 source venv/bin/activate
 
-# Installa PyTorch compatibile con RTX 2060 Super (CUDA 11.7)
+log "⬆️ Aggiornamento pip..."
 pip install --upgrade pip
-pip install torch==2.8.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu117
 
-# Installa dipendenze
+# ----------------------------
+# Installazione PyTorch compatibile RTX 2060 Super
+# ----------------------------
+log "⬇️ Installazione PyTorch compatibile con CUDA 11.7..."
+pip install torch==2.7.1+cu117 torchvision==0.15.2+cu117 torchaudio==2.0.2 --extra-index-url https://download.pytorch.org/whl/cu117
+
+# ----------------------------
+# Dipendenze Wan2GP
+# ----------------------------
+log "⬇️ Installazione dipendenze Wan2GP..."
 pip install -r requirements.txt
 
-# Avvia Wan2GP su porta di default (7860)
-nohup python wgp.py --host 0.0.0.0 > ~/Wan2GP/wan2gp.log 2>&1 &
+# ----------------------------
+# Avvio Wan2GP
+# ----------------------------
+log "🚀 Avvio Wan2GP sulla porta di default..."
+nohup python wgp.py > ~/Wan2GP/wan2gp.log 2>&1 &
 
 log "✅ Wan2GP avviato: http://<server>:7860"
 
