@@ -392,92 +392,92 @@ fi
 # log "🌐 ComfyUI partirà automaticamente al prossimo riavvio su http://<server>:8188"
 
 
-# ----------------------------
-# 1️⃣ Installa Python 3.10 se non presente
-# ----------------------------
-if ! command -v python3.10 &>/dev/null; then
-    log "🔹 Aggiungo PPA deadsnakes e installo Python 3.10..."
-    sudo apt update
-    sudo apt install -y software-properties-common
-    sudo add-apt-repository -y ppa:deadsnakes/ppa
-    sudo apt update
-    sudo apt install -y python3.10 python3.10-dev python3.10-distutils python3.10-venv python3-pip build-essential
-else
-    log "✅ Python 3.10 già installato"
-fi
+# # ----------------------------
+# # 1️⃣ Installa Python 3.10 se non presente
+# # ----------------------------
+# if ! command -v python3.10 &>/dev/null; then
+#     log "🔹 Aggiungo PPA deadsnakes e installo Python 3.10..."
+#     sudo apt update
+#     sudo apt install -y software-properties-common
+#     sudo add-apt-repository -y ppa:deadsnakes/ppa
+#     sudo apt update
+#     sudo apt install -y python3.10 python3.10-dev python3.10-distutils python3.10-venv python3-pip build-essential
+# else
+#     log "✅ Python 3.10 già installato"
+# fi
 
-# ----------------------------
-# 2️⃣ Clona o aggiorna repository Wan2GP
-# ----------------------------
-cd ~
-if [ ! -d "Wan2GP" ]; then
-    log "🔽 Clono repository Wan2GP..."
-    git clone https://github.com/deepbeepmeep/Wan2GP.git
-else
-    log "🔄 Repository Wan2GP già presente, faccio pull..."
-    cd Wan2GP
-    git pull
-fi
-cd ~/Wan2GP
+# # ----------------------------
+# # 2️⃣ Clona o aggiorna repository Wan2GP
+# # ----------------------------
+# cd ~
+# if [ ! -d "Wan2GP" ]; then
+#     log "🔽 Clono repository Wan2GP..."
+#     git clone https://github.com/deepbeepmeep/Wan2GP.git
+# else
+#     log "🔄 Repository Wan2GP già presente, faccio pull..."
+#     cd Wan2GP
+#     git pull
+# fi
+# cd ~/Wan2GP
 
-# ----------------------------
-# 3️⃣ Crea ambiente virtuale solo se non esiste
-# ----------------------------
-if [ ! -d "venv" ]; then
-    log "📦 Creo ambiente virtuale..."
-    python3.10 -m venv venv
-else
-    log "✅ Ambiente virtuale già presente"
-fi
+# # ----------------------------
+# # 3️⃣ Crea ambiente virtuale solo se non esiste
+# # ----------------------------
+# if [ ! -d "venv" ]; then
+#     log "📦 Creo ambiente virtuale..."
+#     python3.10 -m venv venv
+# else
+#     log "✅ Ambiente virtuale già presente"
+# fi
 
-# Attiva virtualenv con check
-if [ -f "venv/bin/activate" ]; then
-    source venv/bin/activate
-else
-    log "❌ Ambiente virtuale non trovato"
-    exit 1
-fi
+# # Attiva virtualenv con check
+# if [ -f "venv/bin/activate" ]; then
+#     source venv/bin/activate
+# else
+#     log "❌ Ambiente virtuale non trovato"
+#     exit 1
+# fi
 
-# ----------------------------
-# 4️⃣ Aggiorna pip/setuptools/wheel
-# ----------------------------
-log "⬆️ Aggiorno pip, setuptools e wheel..."
-pip install --upgrade pip setuptools wheel
+# # ----------------------------
+# # 4️⃣ Aggiorna pip/setuptools/wheel
+# # ----------------------------
+# log "⬆️ Aggiorno pip, setuptools e wheel..."
+# pip install --upgrade pip setuptools wheel
 
-# ----------------------------
-# 5️⃣ Installa PyTorch solo se non presente
-# ----------------------------
-if ! python -c "import torch" &>/dev/null; then
-    log "⬇️ Installazione PyTorch compatibile con RTX 2060 e CUDA 11.7..."
-    pip install torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu117
-else
-    log "✅ PyTorch già installato"
-fi
+# # ----------------------------
+# # 5️⃣ Installa PyTorch solo se non presente
+# # ----------------------------
+# if ! python -c "import torch" &>/dev/null; then
+#     log "⬇️ Installazione PyTorch compatibile con RTX 2060 e CUDA 11.7..."
+#     pip install torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu117
+# else
+#     log "✅ PyTorch già installato"
+# fi
 
-# ----------------------------
-# 6️⃣ Installa dipendenze Wan2GP solo se non presenti
-# ----------------------------
-REQ_FILE="requirements.txt"
-if ! python -c "import rembg, pymatting" &>/dev/null; then
-    log "⬇️ Installazione dipendenze di Wan2GP..."
-    pip install -r $REQ_FILE
-else
-    log "✅ Dipendenze Wan2GP già installate"
-fi
+# # ----------------------------
+# # 6️⃣ Installa dipendenze Wan2GP solo se non presenti
+# # ----------------------------
+# REQ_FILE="requirements.txt"
+# if ! python -c "import rembg, pymatting" &>/dev/null; then
+#     log "⬇️ Installazione dipendenze di Wan2GP..."
+#     pip install -r $REQ_FILE
+# else
+#     log "✅ Dipendenze Wan2GP già installate"
+# fi
 
-# ----------------------------
-# 7️⃣ Avvia Wan2GP solo se porta 7860 libera
-# ----------------------------
-PORT=7860
-if ! ss -tulnp | grep -q ":$PORT"; then
-    log "🚀 Avvio Wan2GP sulla porta $PORT per la rete locale..."
-    nohup python wgp.py --host 0.0.0.0 --port $PORT > ~/Wan2GP/wan2gp.log 2>&1 &
-    log "✅ Wan2GP avviato: http://<server>:$PORT"
-else
-    log "⚠️ Porta $PORT già in uso. Controlla eventuali processi Python attivi"
-fi
+# # ----------------------------
+# # 7️⃣ Avvia Wan2GP solo se porta 7860 libera
+# # ----------------------------
+# PORT=7860
+# if ! ss -tulnp | grep -q ":$PORT"; then
+#     log "🚀 Avvio Wan2GP sulla porta $PORT per la rete locale..."
+#     nohup python wgp.py --host 0.0.0.0 --port $PORT > ~/Wan2GP/wan2gp.log 2>&1 &
+#     log "✅ Wan2GP avviato: http://<server>:$PORT"
+# else
+#     log "⚠️ Porta $PORT già in uso. Controlla eventuali processi Python attivi"
+# fi
 
-log "🌐 Wan2GP disponibile: http://<server>:7860"
+# log "🌐 Wan2GP disponibile: http://<server>:7860"
 
 # # -------------------------------------------------------------------------  
 # # 🔄 Servizio systemd per avvio automatico (rete locale)  
@@ -617,6 +617,47 @@ log "🌐 Wan2GP disponibile: http://<server>:7860"
 # log "✅ Wan2GP avviato."
 # log "🌐 Accessibile sulla rete locale: http://<IP_DEL_SERVER>:7860"
 # log "📌 Auto-avvio al riavvio garantito tramite Docker --restart=always"
+
+
+# -------------------------------------------------------------------------
+# 🛠️ Installazione e avvio Pinokio
+# -------------------------------------------------------------------------
+
+PINOKIO_DIR=~/pinokio
+PINOKIO_PORT=7860
+
+# Clona o aggiorna repository Pinokio
+if [ ! -d "$PINOKIO_DIR" ]; then
+    log "🔽 Clono repository ufficiale Pinokio..."
+    git clone https://github.com/pinokiocomputer/pinokio.git "$PINOKIO_DIR"
+else
+    log "🔄 Repository Pinokio già presente, faccio pull..."
+    cd "$PINOKIO_DIR"
+    git pull
+fi
+cd "$PINOKIO_DIR"
+
+# Crea e attiva ambiente virtuale se non esiste
+if [ ! -d "venv" ]; then
+    log "📦 Creo ambiente virtuale per Pinokio..."
+    python3 -m venv venv
+fi
+source venv/bin/activate
+
+# Aggiorna pip e installa dipendenze
+log "⬆️ Aggiorno pip e installo dipendenze Pinokio..."
+pip install --upgrade pip setuptools wheel
+pip install -r requirements.txt
+
+# Avvio Pinokio in modalità server headless su tutta la rete locale
+if ! pgrep -f "python run.py" &>/dev/null; then
+    log "🚀 Avvio Pinokio sulla porta $PINOKIO_PORT (accessibile da rete locale)..."
+    nohup python run.py --host 0.0.0.0 --port $PINOKIO_PORT > "$PINOKIO_DIR/pinokio.log" 2>&1 &
+else
+    log "✅ Pinokio già in esecuzione"
+fi
+
+log "🌐 Pinokio disponibile sulla rete locale: http://<IP_DEL_SERVER>:$PINOKIO_PORT"
 
 
 # -------------------------------------------------------------------------
