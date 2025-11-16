@@ -395,12 +395,6 @@ fi
 # -------------------------------------------------------------------------
 # 🛠️ Installazione Wan2GP
 # -------------------------------------------------------------------------
-# ----------------------------
-# Aggiungi PPA deadsnakes e installa Python 3.10
-# ----------------------------
-# ----------------------------
-# Aggiungi PPA deadsnakes e installa Python 3.10
-# ----------------------------
 log "🔹 Aggiungo PPA deadsnakes e installo Python 3.10..."
 sudo apt update
 sudo apt install -y software-properties-common
@@ -408,9 +402,7 @@ sudo add-apt-repository -y ppa:deadsnakes/ppa
 sudo apt update
 sudo apt install -y python3.10 python3.10-dev python3.10-distutils python3-pip
 
-# ----------------------------
 # Clona o aggiorna repository Wan2GP
-# ----------------------------
 log "🔽 Clono o aggiorno repository Wan2GP..."
 cd ~
 if [ ! -d "Wan2GP" ]; then
@@ -422,21 +414,15 @@ else
 fi
 cd ~/Wan2GP
 
-# ----------------------------
 # Installazione PyTorch compatibile RTX 2060 Super (CUDA 11.7)
-# ----------------------------
 log "⬇️ Installazione PyTorch compatibile con CUDA 11.7..."
 python3.10 -m pip install torch==2.7.1+cu117 torchvision==0.15.2+cu117 torchaudio==2.0.2 --extra-index-url https://download.pytorch.org/whl/cu117
 
-# ----------------------------
 # Installazione dipendenze di Wan2GP
-# ----------------------------
 log "⬇️ Installazione dipendenze di Wan2GP..."
 python3.10 -m pip install -r requirements.txt
 
-# ----------------------------
 # Avvio di Wan2GP
-# ----------------------------
 log "🚀 Avvio Wan2GP sulla porta di default..."
 nohup python3.10 wgp.py > ~/Wan2GP/wan2gp.log 2>&1 &
 
