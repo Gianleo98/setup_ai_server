@@ -483,32 +483,66 @@ fi
 
 # log "✅ Servizio Wan2GP installato e attivo sulla rete locale."
 
-# ===============================================
-# 🔧 FIX DOCKER + NVIDIA GPU (Ubuntu/Debian)
-# ===============================================
+# -----------------------------------------------------------
+# 🧩 Installazione NVIDIA Container Toolkit (con controlli)
+# -----------------------------------------------------------
 
-log "🔹 Aggiungo repository NVIDIA Container Toolkit..."
-sudo apt-get update
-sudo apt-get install -y --no-install-recommends curl gnupg2
+log "🔍 Verifico installazione NVIDIA Container Toolkit..."
 
-curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | \
-  sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+# 1️⃣ Verifica se già installato
+if dpkg -l | grep -q "^ii  nvidia-container-toolkit "; then
+    log "✅ NVIDIA Container Toolkit già installato. Salto installazione."
+else
+    log "🔹 Aggiungo repository NVIDIA Container Toolkit (solo se assente)..."
 
-curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
-  sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
-  sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+    if [ ! -f /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg ]; then
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends curl gnupg2
 
-log "🔄 Aggiorno pacchetti..."
-sudo apt-get update
+        curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | \
+          sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+    else
+        log "🔑 Keyring NVIDIA già presente, salto."
+    fi
 
-log "🛠️ Installo NVIDIA Container Toolkit..."
-sudo apt-get install -y nvidia-container-toolkit
+    if [ ! -f /etc/apt/sources.list.d/nvidia-container-toolkit.list ]; then
+        curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+          sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+          sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list >/dev/null
+    else
+        log "📦 Repository NVIDIA Container Toolkit già configurato."
+    fi
 
-log "⚙️ Configuro Docker per usare runtime NVIDIA..."
-sudo nvidia-ctk runtime configure --runtime=docker
+    log "🔄 Aggiorno pacchetti..."
+    sudo apt-get update
 
-log "🔄 Riavvio Docker..."
-sudo systemctl restart docker
+    log "🛠️ Installo NVIDIA Container Toolkit..."
+    sudo apt-get install -y nvidia-container-toolkit
+fi
+
+
+# 2️⃣ Verifica configurazione Docker runtime NVIDIA
+log "🔍 Verifico configurazione runtime NVIDIA in Docker..."
+
+if grep -q '"default-runtime": "nvidia"' /etc/docker/daemon.json 2>/dev/null; then
+    log "✅ Docker è già configurato per usare il runtime NVIDIA. Nessuna modifica."
+else
+    log "⚙️ Configuro Docker per usare runtime NVIDIA..."
+    sudo nvidia-ctk runtime configure --runtime=docker
+    RUNTIME_CHANGED=true
+fi
+
+
+# 3️⃣ Riavvio Docker solo se necessario
+if [ "$RUNTIME_CHANGED" = true ]; then
+    log "🔄 Riavvio Docker..."
+    sudo systemctl restart docker
+else
+    log "⏩ Docker non necessita riavvio."
+fi
+
+log "🎉 NVIDIA Container Toolkit pronto."
+
 
 # -------------------------------------------------------------------------
 # 🐋 Clona Wan2GP e avvia script ufficiale Docker
