@@ -620,43 +620,36 @@ fi
 
 
 # -------------------------------------------------------------------------
-# 🛠️ Installazione e avvio Pinokio
+# 🛠️ Installazione Pinokio 3.9.0 (release precompilata)
 # -------------------------------------------------------------------------
 
 PINOKIO_DIR=~/pinokio
+PINOKIO_VERSION=3.9.0
 PINOKIO_PORT=7860
 
-# Clona o aggiorna repository Pinokio
-if [ ! -d "$PINOKIO_DIR" ]; then
-    log "🔽 Clono repository ufficiale Pinokio..."
-    git clone https://github.com/pinokiocomputer/pinokio.git "$PINOKIO_DIR"
-else
-    log "🔄 Repository Pinokio già presente, faccio pull..."
-    cd "$PINOKIO_DIR"
-    git pull
-fi
+# Crea cartella di installazione
+mkdir -p "$PINOKIO_DIR"
 cd "$PINOKIO_DIR"
 
-# Crea e attiva ambiente virtuale se non esiste
-if [ ! -d "venv" ]; then
-    log "📦 Creo ambiente virtuale per Pinokio..."
-    python3 -m venv venv
-fi
-source venv/bin/activate
+# Scarica il pacchetto precompilato appropriato per Linux
+log "⬇️ Scarico Pinokio $PINOKIO_VERSION..."
+wget -O pinokio.tar.gz "https://github.com/pinokiocomputer/pinokio/releases/download/$PINOKIO_VERSION/pinokio-$PINOKIO_VERSION-linux.tar.gz"
 
-# Aggiorna pip e installa dipendenze
-log "⬆️ Aggiorno pip e installo dipendenze Pinokio..."
-pip install --upgrade pip setuptools wheel
+# Estrai l'archivio
+log "📂 Estraggo Pinokio..."
+tar -xzf pinokio.tar.gz
+rm pinokio.tar.gz
 
 # Avvio Pinokio in modalità server headless su tutta la rete locale
-if ! pgrep -f "python run.py" &>/dev/null; then
+if ! pgrep -f "pinokio" &>/dev/null; then
     log "🚀 Avvio Pinokio sulla porta $PINOKIO_PORT (accessibile da rete locale)..."
-    nohup python run.py --host 0.0.0.0 --port $PINOKIO_PORT > "$PINOKIO_DIR/pinokio.log" 2>&1 &
+    nohup "$PINOKIO_DIR/pinokio" --host 0.0.0.0 --port $PINOKIO_PORT > "$PINOKIO_DIR/pinokio.log" 2>&1 &
 else
     log "✅ Pinokio già in esecuzione"
 fi
 
 log "🌐 Pinokio disponibile sulla rete locale: http://<IP_DEL_SERVER>:$PINOKIO_PORT"
+
 
 
 # -------------------------------------------------------------------------
