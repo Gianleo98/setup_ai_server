@@ -392,24 +392,29 @@ fi
 # log "🌐 ComfyUI partirà automaticamente al prossimo riavvio su http://<server>:8188"
 
 
-# -------------------------------------------------------------------------
-# 🛠️ Installazione Wan2GP
-# -------------------------------------------------------------------------
-log "🔹 Aggiungo PPA deadsnakes e installo Python 3.10..."
-sudo apt update
-sudo apt install -y software-properties-common
-sudo add-apt-repository -y ppa:deadsnakes/ppa
-sudo apt update
-sudo apt install -y python3.10 python3.10-dev python3.10-distutils python3.10-venv python3-pip build-essential
+# ----------------------------
+# Installa Python 3.10 se non presente
+# ----------------------------
+if ! command -v python3.10 &>/dev/null; then
+    log "🔹 Aggiungo PPA deadsnakes e installo Python 3.10..."
+    sudo apt update
+    sudo apt install -y software-properties-common
+    sudo add-apt-repository -y ppa:deadsnakes/ppa
+    sudo apt update
+    sudo apt install -y python3.10 python3.10-dev python3.10-distutils python3.10-venv python3-pip build-essential
+else
+    log "✅ Python 3.10 già installato"
+fi
 
 # ----------------------------
 # Clona o aggiorna repository Wan2GP
 # ----------------------------
-log "🔽 Clono o aggiorno repository Wan2GP..."
 cd ~
 if [ ! -d "Wan2GP" ]; then
+    log "🔽 Clono repository Wan2GP..."
     git clone https://github.com/deepbeepmeep/Wan2GP.git
 else
+    log "🔄 Repository Wan2GP già presente, faccio pull..."
     cd Wan2GP
     git pull
     cd ..
@@ -417,10 +422,15 @@ fi
 cd ~/Wan2GP
 
 # ----------------------------
-# Crea ambiente virtuale
+# Crea ambiente virtuale solo se non esiste
 # ----------------------------
-log "📦 Creo ambiente virtuale..."
-python3.10 -m venv venv
+if [ ! -d "venv" ]; then
+    log "📦 Creo ambiente virtuale..."
+    python3.10 -m venv venv
+else
+    log "✅ Ambiente virtuale già presente"
+fi
+
 source venv/bin/activate
 
 # ----------------------------
@@ -430,24 +440,37 @@ log "⬆️ Aggiorno pip, setuptools e wheel dentro venv..."
 pip install --upgrade pip setuptools wheel
 
 # ----------------------------
-# Installa PyTorch compatibile RTX 2060 (CUDA 11.7)
+# Installa PyTorch solo se non presente
 # ----------------------------
-log "⬇️ Installazione PyTorch compatibile con RTX 2060 e CUDA 11.7..."
-pip install torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu117
+if ! python -c "import torch" &>/dev/null; then
+    log "⬇️ Installazione PyTorch compatibile con RTX 2060 e CUDA 11.7..."
+    pip install torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu117
+else
+    log "✅ PyTorch già installato"
+fi
 
 # ----------------------------
-# Installa dipendenze Wan2GP
+# Installa dipendenze Wan2GP solo se non già presenti
 # ----------------------------
-log "⬇️ Installazione dipendenze di Wan2GP..."
-pip install -r requirements.txt
+REQ_FILE="requirements.txt"
+if ! python -c "import rembg, pymatting" &>/dev/null; then
+    log "⬇️ Installazione dipendenze di Wan2GP..."
+    pip install -r $REQ_FILE
+else
+    log "✅ Dipendenze Wan2GP già installate"
+fi
 
 # ----------------------------  
-# Avvio di Wan2GP (accessibile da tutta la rete locale)  
+# Avvio di Wan2GP solo se non già in esecuzione
 # ----------------------------  
-log "🚀 Avvio Wan2GP sulla porta 7860 per la rete locale..."  
-nohup python wgp.py --host 0.0.0.0 --port 7860 > ~/Wan2GP/wan2gp.log 2>&1 &  
+if ! pgrep -f "python wgp.py" &>/dev/null; then
+    log "🚀 Avvio Wan2GP sulla porta 7860 per la rete locale..."
+    nohup python wgp.py --host 0.0.0.0 --port 7860 > ~/Wan2GP/wan2gp.log 2>&1 &
+else
+    log "✅ Wan2GP già in esecuzione"
+fi
 
-log "✅ Wan2GP avviato: http://<server>:7860"  
+log "🌐 Wan2GP disponibile: http://<server>:7860"
 
 # # -------------------------------------------------------------------------  
 # # 🔄 Servizio systemd per avvio automatico (rete locale)  
