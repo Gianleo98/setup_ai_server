@@ -416,7 +416,8 @@ cd ~/Wan2GP
 
 # Installazione PyTorch compatibile RTX 2060 Super (CUDA 11.7)
 log "⬇️ Installazione PyTorch compatibile con CUDA 11.7..."
-python3.10 -m pip install torch==2.7.1+cu117 torchvision==0.15.2+cu117 torchaudio==2.0.2 --extra-index-url https://download.pytorch.org/whl/cu117
+python3.10 -m pip install torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu117
+
 
 # Installazione dipendenze di Wan2GP
 log "⬇️ Installazione dipendenze di Wan2GP..."
