@@ -560,16 +560,33 @@ fi
 cd "$WAN_DIR"
 
 # -------------------------------------------------------------------------
-# 🔹 Esegui script ufficiale Docker con accesso rete locale
+# 🔹 Esegui script ufficiale Docker (solo build)
 # -------------------------------------------------------------------------
+log "🚀 Costruzione immagine Wan2GP tramite script ufficiale Docker..."
+sudo bash run-docker-cuda-deb.sh
 
-log "🚀 Avvio Wan2GP tramite script ufficiale Docker..."
+# -------------------------------------------------------------------------
+# 🔹 Ferma eventuali container esistenti
+# -------------------------------------------------------------------------
+log "🛑 Rimuovo eventuali container Wan2GP già in esecuzione..."
 sudo docker rm -f wan2gp 2>/dev/null || true
 
-# Esegui script ufficiale
-sudo NUMBA_DISABLE_JITCACHE=1 bash run-docker-cuda-deb.sh --host 0.0.0.0 --port 7860
+# -------------------------------------------------------------------------
+# 🔹 Avvia il container manualmente con variabili e rete locale
+# -------------------------------------------------------------------------
+log "🐋 Avvio Wan2GP con NUMBA_DISABLE_JITCACHE=1 e rete locale..."
+sudo docker run -d --name wan2gp \
+  -p 7860:7860 \
+  -e NUMBA_DISABLE_JITCACHE=1 \
+  --gpus all \
+  deepbeepmeep/wan2gp \
+  --host 0.0.0.0 --port 7860
 
-log "✅ Wan2GP avviato. Accessibile da rete locale su http://<IP_DEL_SERVER>:7860"
+# -------------------------------------------------------------------------
+# 🔹 Output stato
+# -------------------------------------------------------------------------
+log "✅ Wan2GP avviato."
+log "🌐 Accessibile sulla rete locale: http://<IP_DEL_SERVER>:7860"
 log "📌 Auto-avvio al riavvio garantito tramite Docker --restart=always"
 
 
