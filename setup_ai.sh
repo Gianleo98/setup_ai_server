@@ -284,67 +284,94 @@ fi
 
 
 # ----------------------------
-# Installa Miniconda se non presente
+# Dipendenze pyenv
 # ----------------------------
-if ! command -v conda &>/dev/null; then
-    log "🔽 Scarico e installo Miniconda..."
-    wget -O ~/miniconda.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-    bash ~/miniconda.sh -b -p $HOME/miniconda3
+log "🔧 Installazione dipendenze per PyEnv..."
+sudo apt update
+sudo apt install -y \
+    make build-essential libssl-dev zlib1g-dev libbz2-dev \
+    libreadline-dev libsqlite3-dev curl libncursesw5-dev \
+    xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev git
 
-    # Aggiungi Miniconda al PATH nel profilo shell
-    echo 'export PATH="$HOME/miniconda3/bin:$PATH"' >> ~/.bashrc
-    export PATH="$HOME/miniconda3/bin:$PATH"
+# ----------------------------
+# Installazione pyenv
+# ----------------------------
+if [ ! -d "$HOME/.pyenv" ]; then
+    log "📦 Installazione PyEnv..."
+    curl https://pyenv.run | bash
+fi
 
-    log "✅ Miniconda installata"
-else
-    log "✅ Miniconda già installata"
+export PATH="$HOME/.pyenv/bin:$PATH"
+eval "$(pyenv init -)"
+eval "$(pyenv virtualenv-init -)"
+
+# ----------------------------
+# Python 3.10.13
+# ----------------------------
+if ! pyenv versions | grep -q "3.10.13"; then
+    log "⬇️ Installazione Python 3.10.13..."
+    pyenv install 3.10.13
 fi
 
 # ----------------------------
-# Clona repository Fooocus
+# Clone Fooocus
 # ----------------------------
 cd ~
+
 if [ ! -d "Fooocus" ]; then
     log "🔽 Clono repository Fooocus..."
     git clone https://github.com/lllyasviel/Fooocus.git
 else
-    log "🔄 Repository Fooocus già presente, faccio pull..."
+    log "🔄 Pull aggiornamenti Fooocus..."
     cd Fooocus
     git pull
+    cd ~
 fi
+
+cd Fooocus
+pyenv local 3.10.13
+
+# ----------------------------
+# venv
+# ----------------------------
+if [ ! -d "fooocus_env" ]; then
+    log "📦 Creo ambiente virtuale..."
+    python3 -m venv fooocus_env
+fi
+
+log "📌 Attivo venv..."
+source fooocus_env/bin/activate
+
+# ----------------------------
+# Install requirements
+# ----------------------------
+log "⬇️ Installo requirements..."
+pip install --upgrade pip wheel setuptools
+pip install -r requirements_versions.txt
+
+# ----------------------------
+# AVVIO AUTOMATICO IN BACKGROUND CON NOHUP
+# ----------------------------
+log "🚀 Avvio Fooocus in background sulla porta 7865..."
+
+# Entro nella directory Fooocus
 cd ~/Fooocus
+source fooocus_env/bin/activate
 
-# ----------------------------
-# Crea ambiente Conda fooocus
-# ----------------------------
-if conda env list | grep -q "^fooocus"; then
-    log "✅ Ambiente Conda fooocus già presente"
-else
-    log "📦 Creo ambiente Conda fooocus..."
-    conda env create -f environment.yaml
-fi
-
-# ----------------------------
-# Attiva ambiente e installa dipendenze aggiuntive
-# ----------------------------
-eval "$(conda shell.bash hook)"
-conda activate fooocus
-
-log "⬆️ Aggiorno pip, setuptools e wheel dentro ambiente..."
-pip install --upgrade pip setuptools wheel
-
-if [ -f "requirements_versions.txt" ]; then
-    log "⬇️ Installazione requirements_versions.txt..."
-    pip install -r requirements_versions.txt
-fi
-
-# ----------------------------
-# Avvio Fooocus con porta in ascolto sulla rete locale
-# ----------------------------
-log "🚀 Avvio Fooocus in ascolto sulla rete locale..."
+# Avvio Fooocus in background
 nohup python entry_with_update.py --listen > ~/Fooocus/fooocus.log 2>&1 &
 
-log "✅ Fooocus avviato. Accessibile su http://<IP_SERVER>:7860"
+sleep 2
+
+log "🎉 Fooocus avviato in background!"
+log "📄 Log file: ~/Fooocus/fooocus.log"
+
+IP=$(hostname -I | awk '{print $1}')
+
+echo "-----------------------------------------------------"
+echo "Fooocus disponibile su:"
+echo "👉 http://$IP:7865"
+echo "-----------------------------------------------------"
 
 
 # -------------------------------------------------------------------------
