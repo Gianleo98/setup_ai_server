@@ -483,6 +483,55 @@ fi
 
 # log "✅ Servizio Wan2GP installato e attivo sulla rete locale."
 
+echo "==============================================="
+echo " 🔧 FIX DOCKER + NVIDIA GPU (Ubuntu/Debian)"
+echo "==============================================="
+
+echo "➡️ 1. Controllo che nvidia-smi funzioni sul sistema..."
+if ! command -v nvidia-smi &> /dev/null; then
+    echo "❌ ERRORE: nvidia-smi non trovato. Installa i driver NVIDIA prima."
+    exit 1
+else
+    nvidia-smi
+    echo "✅ Driver NVIDIA funzionanti."
+fi
+
+echo "➡️ 2. Rimuovo configurazioni NVIDIA Docker danneggiate..."
+sudo apt remove -y nvidia-docker2 nvidia-container-toolkit &>/dev/null
+sudo rm -f /etc/docker/daemon.json
+echo "✅ Configurazioni rimosse."
+
+echo "➡️ 3. Reinstallo NVIDIA Container Toolkit..."
+sudo apt update
+sudo apt install -y nvidia-container-toolkit
+
+echo "➡️ 4. Configuro Docker per usare NVIDIA come runtime..."
+sudo nvidia-ctk runtime configure --runtime=docker
+
+echo "➡️ 5. Riavvio Docker..."
+sudo systemctl restart docker
+
+echo "➡️ 6. Test GPU dentro Docker..."
+sudo docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
+
+STATUS=$?
+
+if [ $STATUS -eq 0 ]; then
+    echo "==============================================="
+    echo "🎉 GPU FUNZIONANTE DENTRO DOCKER!"
+    echo "Puoi ora usare Wan2GP con Docker senza problemi."
+    echo "==============================================="
+else
+    echo "==============================================="
+    echo "❌ LA GPU NON È ANCORA DISPONIBILE IN DOCKER."
+    echo " Inviami l'output dei seguenti comandi:"
+    echo ""
+    echo "  which nvidia-smi"
+    echo "  cat /etc/docker/daemon.json"
+    echo "  ls -l /dev/nvidia*"
+    echo "  docker info | grep -i runtime"
+    echo "==============================================="
+fi
 
 # -------------------------------------------------------------------------
 # 🐋 Clona Wan2GP e avvia script ufficiale Docker
