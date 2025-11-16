@@ -623,34 +623,40 @@ fi
 # 🛠️ Installazione Pinokio 3.9.0 (release precompilata)
 # -------------------------------------------------------------------------
 
-PINOKIO_DIR=~/pinokio
-PINOKIO_VERSION=3.9.0
-PINOKIO_PORT=7860
+PINOKIO_VERSION="3.9.0"
+PINOKIO_DEB="Pinokio_${PINOKIO_VERSION}_amd64.deb"
+PINOKIO_URL="https://github.com/pinokiocomputer/pinokio/releases/download/${PINOKIO_VERSION}/${PINOKIO_DEB}"
+PINOKIO_SHA256="bf80c658d2b99cdbdce6626ac35060f124014a76d3e5b93c5b5ca7b4a7720cc4"
 
-# Crea cartella di installazione
-mkdir -p "$PINOKIO_DIR"
-cd "$PINOKIO_DIR"
+# Directory temporanea per il download
+TMPDIR=$(mktemp -d)
+cd "$TMPDIR"
 
-# Scarica il pacchetto precompilato appropriato per Linux
-log "⬇️ Scarico Pinokio $PINOKIO_VERSION..."
-wget -O pinokio.tar.gz "https://github.com/pinokiocomputer/pinokio/releases/download/$PINOKIO_VERSION/pinokio-$PINOKIO_VERSION-linux.tar.gz"
+echo "⬇️ Scarico Pinokio ${PINOKIO_VERSION}..."
+curl -LO "$PINOKIO_URL"
 
-# Estrai l'archivio
-log "📂 Estraggo Pinokio..."
-tar -xzf pinokio.tar.gz
-rm pinokio.tar.gz
-
-# Avvio Pinokio in modalità server headless su tutta la rete locale
-if ! pgrep -f "pinokio" &>/dev/null; then
-    log "🚀 Avvio Pinokio sulla porta $PINOKIO_PORT (accessibile da rete locale)..."
-    nohup "$PINOKIO_DIR/pinokio" --host 0.0.0.0 --port $PINOKIO_PORT > "$PINOKIO_DIR/pinokio.log" 2>&1 &
-else
-    log "✅ Pinokio già in esecuzione"
+echo "🔍 Verifica SHA256..."
+DOWNLOADED_SHA=$(sha256sum "$PINOKIO_DEB" | awk '{print $1}')
+if [ "$DOWNLOADED_SHA" != "$PINOKIO_SHA256" ]; then
+    echo "❌ SHA256 mismatch. Download corrotto."
+    exit 1
 fi
+echo "✅ SHA256 verificato."
 
-log "🌐 Pinokio disponibile sulla rete locale: http://<IP_DEL_SERVER>:$PINOKIO_PORT"
+echo "🛠️ Installazione Pinokio..."
+sudo dpkg -i "$PINOKIO_DEB" || sudo apt-get install -f -y
 
+echo "✅ Pinokio installato."
 
+# Pulizia
+cd ~
+rm -rf "$TMPDIR"
+
+# Avvio Pinokio in background
+nohup pinokio &> ~/pinokio.log &
+
+echo "🌐 Puoi avviare Pinokio e accedervi dalla rete locale."
+echo "Per avviare: pinokio"
 
 # -------------------------------------------------------------------------
 # 🔁 REBOOT FINALE
