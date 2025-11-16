@@ -1,6 +1,6 @@
 #!/bin/bash
-# sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Gianleo98/setup_ai_server/refs/heads/master/setup_ai.sh)"
 # sudo bash -c "$(curl -fsSL https://bit.ly/janraion_omen_ai)"
+# curl -fsSL -H "Cache-Control: no-cache" "https://raw.githubusercontent.com/Gianleo98/setup_ai_server/refs/heads/master/setup_ai.sh?$(date +%s)" | sudo bash
 set -e  # Ferma lo script in caso di errore
 
 log() { echo -e "\033[1;32m$1\033[0m"; }
@@ -563,7 +563,7 @@ cd "$WAN_DIR"
 # 🔹 Esegui script ufficiale Docker (solo build)
 # -------------------------------------------------------------------------
 log "🚀 Costruzione immagine Wan2GP tramite script ufficiale Docker..."
-sudo bash run-docker-cuda-deb.sh
+sudo bash run-docker-cuda-deb.sh --host 0.0.0.0 --port 7860
 
 # -------------------------------------------------------------------------
 # 🔹 Ferma eventuali container esistenti
