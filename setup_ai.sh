@@ -219,12 +219,12 @@ sudo systemctl restart ollama
 
 # 4️⃣ Attesa avvio Ollama
 log "⏳ Attesa avvio servizio Ollama..."
-for i in {1..10}; do
+for i in {1..5}; do
   if curl -fs http://127.0.0.1:11434/api/version &>/dev/null; then
     log "✅ Ollama attivo e funzionante."
     break
   else
-    log "⏳ Tentativo $i/10: Ollama non ancora pronto..."
+    log "⏳ Tentativo $i/5: Ollama non ancora pronto..."
     sleep 3
   fi
 done
@@ -528,12 +528,11 @@ cd "$WAN_DIR"
 # -------------------------------------------------------------------------
 # 🔹 Esegui script ufficiale Docker con accesso rete locale
 # -------------------------------------------------------------------------
+
 log "🚀 Avvio Wan2GP tramite script ufficiale Docker..."
-# Rimuove eventuali container precedenti
 sudo docker rm -f wan2gp 2>/dev/null || true
 
 # Esegui script ufficiale
-# Impostiamo la porta 7860 accessibile a tutta la rete
 sudo bash run-docker-cuda-deb.sh --host 0.0.0.0 --port 7860
 
 log "✅ Wan2GP avviato. Accessibile da rete locale su http://<IP_DEL_SERVER>:7860"
