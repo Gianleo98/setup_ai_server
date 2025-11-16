@@ -392,62 +392,62 @@ fi
 # log "🌐 ComfyUI partirà automaticamente al prossimo riavvio su http://<server>:8188"
 
 
-# # -------------------------------------------------------------------------
-# # 🛠️ Installazione Wan2GP
-# # -------------------------------------------------------------------------
-# log "🔹 Aggiungo PPA deadsnakes e installo Python 3.10..."
-# sudo apt update
-# sudo apt install -y software-properties-common
-# sudo add-apt-repository -y ppa:deadsnakes/ppa
-# sudo apt update
-# sudo apt install -y python3.10 python3.10-dev python3.10-distutils python3.10-venv python3-pip build-essential
+# -------------------------------------------------------------------------
+# 🛠️ Installazione Wan2GP
+# -------------------------------------------------------------------------
+log "🔹 Aggiungo PPA deadsnakes e installo Python 3.10..."
+sudo apt update
+sudo apt install -y software-properties-common
+sudo add-apt-repository -y ppa:deadsnakes/ppa
+sudo apt update
+sudo apt install -y python3.10 python3.10-dev python3.10-distutils python3.10-venv python3-pip build-essential
 
-# # ----------------------------
-# # Clona o aggiorna repository Wan2GP
-# # ----------------------------
-# log "🔽 Clono o aggiorno repository Wan2GP..."
-# cd ~
-# if [ ! -d "Wan2GP" ]; then
-#     git clone https://github.com/deepbeepmeep/Wan2GP.git
-# else
-#     cd Wan2GP
-#     git pull
-#     cd ..
-# fi
-# cd ~/Wan2GP
+# ----------------------------
+# Clona o aggiorna repository Wan2GP
+# ----------------------------
+log "🔽 Clono o aggiorno repository Wan2GP..."
+cd ~
+if [ ! -d "Wan2GP" ]; then
+    git clone https://github.com/deepbeepmeep/Wan2GP.git
+else
+    cd Wan2GP
+    git pull
+    cd ..
+fi
+cd ~/Wan2GP
 
-# # ----------------------------
-# # Crea ambiente virtuale
-# # ----------------------------
-# log "📦 Creo ambiente virtuale..."
-# python3.10 -m venv venv
-# source venv/bin/activate
+# ----------------------------
+# Crea ambiente virtuale
+# ----------------------------
+log "📦 Creo ambiente virtuale..."
+python3.10 -m venv venv
+source venv/bin/activate
 
-# # ----------------------------
-# # Aggiorna pip/setuptools/wheel dentro venv
-# # ----------------------------
-# log "⬆️ Aggiorno pip, setuptools e wheel dentro venv..."
-# pip install --upgrade pip setuptools wheel
+# ----------------------------
+# Aggiorna pip/setuptools/wheel dentro venv
+# ----------------------------
+log "⬆️ Aggiorno pip, setuptools e wheel dentro venv..."
+pip install --upgrade pip setuptools wheel
 
-# # ----------------------------
-# # Installa PyTorch compatibile RTX 2060 (CUDA 11.7)
-# # ----------------------------
-# log "⬇️ Installazione PyTorch compatibile con RTX 2060 e CUDA 11.7..."
-# pip install torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu117
+# ----------------------------
+# Installa PyTorch compatibile RTX 2060 (CUDA 11.7)
+# ----------------------------
+log "⬇️ Installazione PyTorch compatibile con RTX 2060 e CUDA 11.7..."
+pip install torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu117
 
-# # ----------------------------
-# # Installa dipendenze Wan2GP
-# # ----------------------------
-# log "⬇️ Installazione dipendenze di Wan2GP..."
-# pip install -r requirements.txt
+# ----------------------------
+# Installa dipendenze Wan2GP
+# ----------------------------
+log "⬇️ Installazione dipendenze di Wan2GP..."
+pip install -r requirements.txt
 
-# # ----------------------------  
-# # Avvio di Wan2GP (accessibile da tutta la rete locale)  
-# # ----------------------------  
-# log "🚀 Avvio Wan2GP sulla porta 7860 per la rete locale..."  
-# nohup python wgp.py --host 0.0.0.0 --port 7860 > ~/Wan2GP/wan2gp.log 2>&1 &  
+# ----------------------------  
+# Avvio di Wan2GP (accessibile da tutta la rete locale)  
+# ----------------------------  
+log "🚀 Avvio Wan2GP sulla porta 7860 per la rete locale..."  
+nohup python wgp.py --host 0.0.0.0 --port 7860 > ~/Wan2GP/wan2gp.log 2>&1 &  
 
-# log "✅ Wan2GP avviato: http://<server>:7860"  
+log "✅ Wan2GP avviato: http://<server>:7860"  
 
 # # -------------------------------------------------------------------------  
 # # 🔄 Servizio systemd per avvio automatico (rete locale)  
@@ -483,110 +483,110 @@ fi
 
 # log "✅ Servizio Wan2GP installato e attivo sulla rete locale."
 
-# -----------------------------------------------------------
-# 🧩 Installazione NVIDIA Container Toolkit (con controlli)
-# -----------------------------------------------------------
+# # -----------------------------------------------------------
+# # 🧩 Installazione NVIDIA Container Toolkit (con controlli)
+# # -----------------------------------------------------------
 
-log "🔍 Verifico installazione NVIDIA Container Toolkit..."
+# log "🔍 Verifico installazione NVIDIA Container Toolkit..."
 
-# 1️⃣ Verifica se già installato
-if dpkg -l | grep -q "^ii  nvidia-container-toolkit "; then
-    log "✅ NVIDIA Container Toolkit già installato. Salto installazione."
-else
-    log "🔹 Aggiungo repository NVIDIA Container Toolkit (solo se assente)..."
+# # 1️⃣ Verifica se già installato
+# if dpkg -l | grep -q "^ii  nvidia-container-toolkit "; then
+#     log "✅ NVIDIA Container Toolkit già installato. Salto installazione."
+# else
+#     log "🔹 Aggiungo repository NVIDIA Container Toolkit (solo se assente)..."
 
-    if [ ! -f /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg ]; then
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends curl gnupg2
+#     if [ ! -f /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg ]; then
+#         sudo apt-get update
+#         sudo apt-get install -y --no-install-recommends curl gnupg2
 
-        curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | \
-          sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
-    else
-        log "🔑 Keyring NVIDIA già presente, salto."
-    fi
+#         curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | \
+#           sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+#     else
+#         log "🔑 Keyring NVIDIA già presente, salto."
+#     fi
 
-    if [ ! -f /etc/apt/sources.list.d/nvidia-container-toolkit.list ]; then
-        curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
-          sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
-          sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list >/dev/null
-    else
-        log "📦 Repository NVIDIA Container Toolkit già configurato."
-    fi
+#     if [ ! -f /etc/apt/sources.list.d/nvidia-container-toolkit.list ]; then
+#         curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+#           sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+#           sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list >/dev/null
+#     else
+#         log "📦 Repository NVIDIA Container Toolkit già configurato."
+#     fi
 
-    log "🔄 Aggiorno pacchetti..."
-    sudo apt-get update
+#     log "🔄 Aggiorno pacchetti..."
+#     sudo apt-get update
 
-    log "🛠️ Installo NVIDIA Container Toolkit..."
-    sudo apt-get install -y nvidia-container-toolkit
-fi
-
-
-# 2️⃣ Verifica configurazione Docker runtime NVIDIA
-log "🔍 Verifico configurazione runtime NVIDIA in Docker..."
-
-if grep -q '"default-runtime": "nvidia"' /etc/docker/daemon.json 2>/dev/null; then
-    log "✅ Docker è già configurato per usare il runtime NVIDIA. Nessuna modifica."
-else
-    log "⚙️ Configuro Docker per usare runtime NVIDIA..."
-    sudo nvidia-ctk runtime configure --runtime=docker
-    RUNTIME_CHANGED=true
-fi
+#     log "🛠️ Installo NVIDIA Container Toolkit..."
+#     sudo apt-get install -y nvidia-container-toolkit
+# fi
 
 
-# 3️⃣ Riavvio Docker solo se necessario
-if [ "$RUNTIME_CHANGED" = true ]; then
-    log "🔄 Riavvio Docker..."
-    sudo systemctl restart docker
-else
-    log "⏩ Docker non necessita riavvio."
-fi
+# # 2️⃣ Verifica configurazione Docker runtime NVIDIA
+# log "🔍 Verifico configurazione runtime NVIDIA in Docker..."
 
-log "🎉 NVIDIA Container Toolkit pronto."
+# if grep -q '"default-runtime": "nvidia"' /etc/docker/daemon.json 2>/dev/null; then
+#     log "✅ Docker è già configurato per usare il runtime NVIDIA. Nessuna modifica."
+# else
+#     log "⚙️ Configuro Docker per usare runtime NVIDIA..."
+#     sudo nvidia-ctk runtime configure --runtime=docker
+#     RUNTIME_CHANGED=true
+# fi
 
 
-# -------------------------------------------------------------------------
-# 🐋 Clona Wan2GP e avvia script ufficiale Docker
-# -------------------------------------------------------------------------
-WAN_DIR="$USER_HOME/Wan2GP"
+# # 3️⃣ Riavvio Docker solo se necessario
+# if [ "$RUNTIME_CHANGED" = true ]; then
+#     log "🔄 Riavvio Docker..."
+#     sudo systemctl restart docker
+# else
+#     log "⏩ Docker non necessita riavvio."
+# fi
 
-if [ ! -d "$WAN_DIR" ]; then
-    log "📥 Clonazione Wan2GP..."
-    git clone https://github.com/deepbeepmeep/Wan2GP.git "$WAN_DIR"
-    cd "$WAN_DIR"
-else
-    log "🔄 Wan2GP già presente, aggiorno..."
-    cd "$WAN_DIR" && git pull
-fi
+# log "🎉 NVIDIA Container Toolkit pronto."
 
-# -------------------------------------------------------------------------
-# 🔹 Esegui script ufficiale Docker (solo build)
-# -------------------------------------------------------------------------
-log "🚀 Costruzione immagine Wan2GP tramite script ufficiale Docker..."
-sudo bash run-docker-cuda-deb.sh --host 0.0.0.0 --port 7860
 
-# -------------------------------------------------------------------------
-# 🔹 Ferma eventuali container esistenti
-# -------------------------------------------------------------------------
-log "🛑 Rimuovo eventuali container Wan2GP già in esecuzione..."
-sudo docker rm -f wan2gp 2>/dev/null || true
+# # -------------------------------------------------------------------------
+# # 🐋 Clona Wan2GP e avvia script ufficiale Docker
+# # -------------------------------------------------------------------------
+# WAN_DIR="$USER_HOME/Wan2GP"
 
-# -------------------------------------------------------------------------
-# 🔹 Avvia il container manualmente con variabili e rete locale
-# -------------------------------------------------------------------------
-log "🐋 Avvio Wan2GP con NUMBA_DISABLE_JITCACHE=1 e rete locale..."
-sudo docker run -d --name wan2gp \
-  -p 7860:7860 \
-  -e NUMBA_DISABLE_JITCACHE=1 \
-  --gpus all \
-  deepbeepmeep/wan2gp \
-  --host 0.0.0.0 --port 7860
+# if [ ! -d "$WAN_DIR" ]; then
+#     log "📥 Clonazione Wan2GP..."
+#     git clone https://github.com/deepbeepmeep/Wan2GP.git "$WAN_DIR"
+#     cd "$WAN_DIR"
+# else
+#     log "🔄 Wan2GP già presente, aggiorno..."
+#     cd "$WAN_DIR" && git pull
+# fi
 
-# -------------------------------------------------------------------------
-# 🔹 Output stato
-# -------------------------------------------------------------------------
-log "✅ Wan2GP avviato."
-log "🌐 Accessibile sulla rete locale: http://<IP_DEL_SERVER>:7860"
-log "📌 Auto-avvio al riavvio garantito tramite Docker --restart=always"
+# # -------------------------------------------------------------------------
+# # 🔹 Esegui script ufficiale Docker (solo build)
+# # -------------------------------------------------------------------------
+# log "🚀 Costruzione immagine Wan2GP tramite script ufficiale Docker..."
+# sudo bash run-docker-cuda-deb.sh --host 0.0.0.0 --port 7860
+
+# # -------------------------------------------------------------------------
+# # 🔹 Ferma eventuali container esistenti
+# # -------------------------------------------------------------------------
+# log "🛑 Rimuovo eventuali container Wan2GP già in esecuzione..."
+# sudo docker rm -f wan2gp 2>/dev/null || true
+
+# # -------------------------------------------------------------------------
+# # 🔹 Avvia il container manualmente con variabili e rete locale
+# # -------------------------------------------------------------------------
+# log "🐋 Avvio Wan2GP con NUMBA_DISABLE_JITCACHE=1 e rete locale..."
+# sudo docker run -d --name wan2gp \
+#   -p 7860:7860 \
+#   -e NUMBA_DISABLE_JITCACHE=1 \
+#   --gpus all \
+#   deepbeepmeep/wan2gp \
+#   --host 0.0.0.0 --port 7860
+
+# # -------------------------------------------------------------------------
+# # 🔹 Output stato
+# # -------------------------------------------------------------------------
+# log "✅ Wan2GP avviato."
+# log "🌐 Accessibile sulla rete locale: http://<IP_DEL_SERVER>:7860"
+# log "📌 Auto-avvio al riavvio garantito tramite Docker --restart=always"
 
 
 # -------------------------------------------------------------------------
