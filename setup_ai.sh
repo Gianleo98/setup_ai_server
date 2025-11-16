@@ -395,12 +395,11 @@ fi
 # -------------------------------------------------------------------------
 # 🛠️ Installazione Wan2GP
 # -------------------------------------------------------------------------
-log "🚀 Clonazione repository Wan2GP..."
+# Clona repo
 cd ~
 if [ ! -d "Wan2GP" ]; then
   git clone https://github.com/deepbeepmeep/Wan2GP.git
 else
-  log "🔄 Repository Wan2GP già presente: aggiorno..."
   cd Wan2GP
   git pull
   cd ..
@@ -408,56 +407,55 @@ fi
 
 cd ~/Wan2GP
 
-log "📦 Creazione ambiente virtuale Python..."
+# Virtualenv
 python3 -m venv venv
 source venv/bin/activate
 
-log "⬇️ Installazione dipendenze..."
+# Installa PyTorch compatibile con RTX 2060 Super (CUDA 11.7)
 pip install --upgrade pip
-pip install torch==2.7.1 torchvision torchaudio --index-url https://download.pytorch.org/whl/test/cu128  # come indicato nel README :contentReference[oaicite:2]{index=2}
+pip install torch==2.8.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu117
+
+# Installa dipendenze
 pip install -r requirements.txt
 
-# -------------------------------------------------------------------------
-# 🔧 Avvio Wan2GP
-# -------------------------------------------------------------------------
-log "🚀 Avvio Wan2GP..."
-nohup python wgp.py --host 0.0.0.0 --port 9000 > ~/Wan2GP/wan2gp.log 2>&1 &
+# Avvia Wan2GP su porta di default (7860)
+nohup python wgp.py --host 0.0.0.0 > ~/Wan2GP/wan2gp.log 2>&1 &
 
-log "✅ Wan2GP avviato: http://<server>:9000"
+log "✅ Wan2GP avviato: http://<server>:7860"
 
-# -------------------------------------------------------------------------
-# 🔄 Servizio systemd per avvio automatico
-# -------------------------------------------------------------------------
-REAL_USER="${SUDO_USER:-$USER}"
-REAL_HOME=$(eval echo ~"$REAL_USER")
+# # -------------------------------------------------------------------------
+# # 🔄 Servizio systemd per avvio automatico
+# # -------------------------------------------------------------------------
+# REAL_USER="${SUDO_USER:-$USER}"
+# REAL_HOME=$(eval echo ~"$REAL_USER")
 
-SERVICE_PATH="/etc/systemd/system/wan2gp.service"
+# SERVICE_PATH="/etc/systemd/system/wan2gp.service"
 
-log "🔧 Creazione servizio systemd wan2gp.service..."
+# log "🔧 Creazione servizio systemd wan2gp.service..."
 
-sudo bash -c "cat > ${SERVICE_PATH}" <<EOF
-[Unit]
-Description=Wan2GP Service
-After=network.target
+# sudo bash -c "cat > ${SERVICE_PATH}" <<EOF
+# [Unit]
+# Description=Wan2GP Service
+# After=network.target
 
-[Service]
-Type=simple
-User=${REAL_USER}
-WorkingDirectory=${REAL_HOME}/Wan2GP
-ExecStart=${REAL_HOME}/Wan2GP/venv/bin/python ${REAL_HOME}/Wan2GP/wgp.py --host 0.0.0.0 --port 9000
-Restart=always
-RestartSec=5
+# [Service]
+# Type=simple
+# User=${REAL_USER}
+# WorkingDirectory=${REAL_HOME}/Wan2GP
+# ExecStart=${REAL_HOME}/Wan2GP/venv/bin/python ${REAL_HOME}/Wan2GP/wgp.py --host 0.0.0.0 --port 9000
+# Restart=always
+# RestartSec=5
 
-[Install]
-WantedBy=multi-user.target
-EOF
+# [Install]
+# WantedBy=multi-user.target
+# EOF
 
-log "📌 Abilito e avvio il servizio..."
-sudo systemctl daemon-reload
-sudo systemctl enable wan2gp.service
-sudo systemctl restart wan2gp.service
+# log "📌 Abilito e avvio il servizio..."
+# sudo systemctl daemon-reload
+# sudo systemctl enable wan2gp.service
+# sudo systemctl restart wan2gp.service
 
-log "✅ Servizio Wan2GP installato e attivo."
+# log "✅ Servizio Wan2GP installato e attivo."
 
 
 # -------------------------------------------------------------------------
