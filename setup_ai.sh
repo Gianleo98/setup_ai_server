@@ -393,7 +393,7 @@ fi
 
 
 # ----------------------------
-# Installa Python 3.10 se non presente
+# 1️⃣ Installa Python 3.10 se non presente
 # ----------------------------
 if ! command -v python3.10 &>/dev/null; then
     log "🔹 Aggiungo PPA deadsnakes e installo Python 3.10..."
@@ -407,7 +407,7 @@ else
 fi
 
 # ----------------------------
-# Clona o aggiorna repository Wan2GP
+# 2️⃣ Clona o aggiorna repository Wan2GP
 # ----------------------------
 cd ~
 if [ ! -d "Wan2GP" ]; then
@@ -417,12 +417,11 @@ else
     log "🔄 Repository Wan2GP già presente, faccio pull..."
     cd Wan2GP
     git pull
-    cd ..
 fi
 cd ~/Wan2GP
 
 # ----------------------------
-# Crea ambiente virtuale solo se non esiste
+# 3️⃣ Crea ambiente virtuale solo se non esiste
 # ----------------------------
 if [ ! -d "venv" ]; then
     log "📦 Creo ambiente virtuale..."
@@ -431,16 +430,22 @@ else
     log "✅ Ambiente virtuale già presente"
 fi
 
-source venv/bin/activate
+# Attiva virtualenv con check
+if [ -f "venv/bin/activate" ]; then
+    source venv/bin/activate
+else
+    log "❌ Ambiente virtuale non trovato"
+    exit 1
+fi
 
 # ----------------------------
-# Aggiorna pip/setuptools/wheel dentro venv
+# 4️⃣ Aggiorna pip/setuptools/wheel
 # ----------------------------
-log "⬆️ Aggiorno pip, setuptools e wheel dentro venv..."
+log "⬆️ Aggiorno pip, setuptools e wheel..."
 pip install --upgrade pip setuptools wheel
 
 # ----------------------------
-# Installa PyTorch solo se non presente
+# 5️⃣ Installa PyTorch solo se non presente
 # ----------------------------
 if ! python -c "import torch" &>/dev/null; then
     log "⬇️ Installazione PyTorch compatibile con RTX 2060 e CUDA 11.7..."
@@ -450,7 +455,7 @@ else
 fi
 
 # ----------------------------
-# Installa dipendenze Wan2GP solo se non già presenti
+# 6️⃣ Installa dipendenze Wan2GP solo se non presenti
 # ----------------------------
 REQ_FILE="requirements.txt"
 if ! python -c "import rembg, pymatting" &>/dev/null; then
@@ -460,14 +465,16 @@ else
     log "✅ Dipendenze Wan2GP già installate"
 fi
 
-# ----------------------------  
-# Avvio di Wan2GP solo se non già in esecuzione
-# ----------------------------  
-if ! pgrep -f "python wgp.py" &>/dev/null; then
-    log "🚀 Avvio Wan2GP sulla porta 7860 per la rete locale..."
-    nohup python wgp.py --host 0.0.0.0 --port 7860 > ~/Wan2GP/wan2gp.log 2>&1 &
+# ----------------------------
+# 7️⃣ Avvia Wan2GP solo se porta 7860 libera
+# ----------------------------
+PORT=7860
+if ! ss -tulnp | grep -q ":$PORT"; then
+    log "🚀 Avvio Wan2GP sulla porta $PORT per la rete locale..."
+    nohup python wgp.py --host 0.0.0.0 --port $PORT > ~/Wan2GP/wan2gp.log 2>&1 &
+    log "✅ Wan2GP avviato: http://<server>:$PORT"
 else
-    log "✅ Wan2GP già in esecuzione"
+    log "⚠️ Porta $PORT già in uso. Controlla eventuali processi Python attivi"
 fi
 
 log "🌐 Wan2GP disponibile: http://<server>:7860"
