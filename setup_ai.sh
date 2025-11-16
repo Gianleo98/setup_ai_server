@@ -567,7 +567,7 @@ log "🚀 Avvio Wan2GP tramite script ufficiale Docker..."
 sudo docker rm -f wan2gp 2>/dev/null || true
 
 # Esegui script ufficiale
-sudo bash run-docker-cuda-deb.sh --host 0.0.0.0 --port 7860
+sudo NUMBA_DISABLE_JITCACHE=1 bash run-docker-cuda-deb.sh --host 0.0.0.0 --port 7860
 
 log "✅ Wan2GP avviato. Accessibile da rete locale su http://<IP_DEL_SERVER>:7860"
 log "📌 Auto-avvio al riavvio garantito tramite Docker --restart=always"
