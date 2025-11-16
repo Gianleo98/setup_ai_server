@@ -552,12 +552,11 @@ WAN_DIR="$USER_HOME/Wan2GP"
 if [ ! -d "$WAN_DIR" ]; then
     log "📥 Clonazione Wan2GP..."
     git clone https://github.com/deepbeepmeep/Wan2GP.git "$WAN_DIR"
+    cd "$WAN_DIR"
 else
     log "🔄 Wan2GP già presente, aggiorno..."
     cd "$WAN_DIR" && git pull
 fi
-
-cd "$WAN_DIR"
 
 # -------------------------------------------------------------------------
 # 🔹 Esegui script ufficiale Docker (solo build)
