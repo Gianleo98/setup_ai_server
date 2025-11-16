@@ -392,97 +392,126 @@ fi
 # log "🌐 ComfyUI partirà automaticamente al prossimo riavvio su http://<server>:8188"
 
 
-# -------------------------------------------------------------------------
-# 🛠️ Installazione Wan2GP
-# -------------------------------------------------------------------------
-log "🔹 Aggiungo PPA deadsnakes e installo Python 3.10..."
-sudo apt update
-sudo apt install -y software-properties-common
-sudo add-apt-repository -y ppa:deadsnakes/ppa
-sudo apt update
-sudo apt install -y python3.10 python3.10-dev python3.10-distutils python3.10-venv python3-pip build-essential
+# # -------------------------------------------------------------------------
+# # 🛠️ Installazione Wan2GP
+# # -------------------------------------------------------------------------
+# log "🔹 Aggiungo PPA deadsnakes e installo Python 3.10..."
+# sudo apt update
+# sudo apt install -y software-properties-common
+# sudo add-apt-repository -y ppa:deadsnakes/ppa
+# sudo apt update
+# sudo apt install -y python3.10 python3.10-dev python3.10-distutils python3.10-venv python3-pip build-essential
 
-# ----------------------------
-# Clona o aggiorna repository Wan2GP
-# ----------------------------
-log "🔽 Clono o aggiorno repository Wan2GP..."
-cd ~
-if [ ! -d "Wan2GP" ]; then
-    git clone https://github.com/deepbeepmeep/Wan2GP.git
+# # ----------------------------
+# # Clona o aggiorna repository Wan2GP
+# # ----------------------------
+# log "🔽 Clono o aggiorno repository Wan2GP..."
+# cd ~
+# if [ ! -d "Wan2GP" ]; then
+#     git clone https://github.com/deepbeepmeep/Wan2GP.git
+# else
+#     cd Wan2GP
+#     git pull
+#     cd ..
+# fi
+# cd ~/Wan2GP
+
+# # ----------------------------
+# # Crea ambiente virtuale
+# # ----------------------------
+# log "📦 Creo ambiente virtuale..."
+# python3.10 -m venv venv
+# source venv/bin/activate
+
+# # ----------------------------
+# # Aggiorna pip/setuptools/wheel dentro venv
+# # ----------------------------
+# log "⬆️ Aggiorno pip, setuptools e wheel dentro venv..."
+# pip install --upgrade pip setuptools wheel
+
+# # ----------------------------
+# # Installa PyTorch compatibile RTX 2060 (CUDA 11.7)
+# # ----------------------------
+# log "⬇️ Installazione PyTorch compatibile con RTX 2060 e CUDA 11.7..."
+# pip install torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu117
+
+# # ----------------------------
+# # Installa dipendenze Wan2GP
+# # ----------------------------
+# log "⬇️ Installazione dipendenze di Wan2GP..."
+# pip install -r requirements.txt
+
+# # ----------------------------  
+# # Avvio di Wan2GP (accessibile da tutta la rete locale)  
+# # ----------------------------  
+# log "🚀 Avvio Wan2GP sulla porta 7860 per la rete locale..."  
+# nohup python wgp.py --host 0.0.0.0 --port 7860 > ~/Wan2GP/wan2gp.log 2>&1 &  
+
+# log "✅ Wan2GP avviato: http://<server>:7860"  
+
+# # -------------------------------------------------------------------------  
+# # 🔄 Servizio systemd per avvio automatico (rete locale)  
+# # -------------------------------------------------------------------------  
+# REAL_USER="${SUDO_USER:-$USER}"  
+# REAL_HOME=$(eval echo ~"$REAL_USER")  
+
+# SERVICE_PATH="/etc/systemd/system/wan2gp.service"  
+
+# log "🔧 Creazione servizio systemd wan2gp.service..."  
+
+# sudo bash -c "cat > ${SERVICE_PATH}" <<EOF
+# [Unit]
+# Description=Wan2GP Service
+# After=network.target
+
+# [Service]
+# Type=simple
+# User=${REAL_USER}
+# WorkingDirectory=${REAL_HOME}/Wan2GP
+# ExecStart=${REAL_HOME}/Wan2GP/venv/bin/python ${REAL_HOME}/Wan2GP/wgp.py --host 0.0.0.0 --port 7860
+# Restart=always
+# RestartSec=5
+
+# [Install]
+# WantedBy=multi-user.target
+# EOF
+
+# log "📌 Abilito e avvio il servizio..."  
+# sudo systemctl daemon-reload  
+# sudo systemctl enable wan2gp.service  
+# sudo systemctl restart wan2gp.service  
+
+# log "✅ Servizio Wan2GP installato e attivo sulla rete locale."
+
+
+# -------------------------------------------------------------------------
+# 🐋 Clona Wan2GP e avvia script ufficiale Docker
+# -------------------------------------------------------------------------
+WAN_DIR="$HOME/Wan2GP"
+
+if [ ! -d "$WAN_DIR" ]; then
+    log "📥 Clonazione Wan2GP..."
+    git clone https://github.com/deepbeepmeep/Wan2GP.git "$WAN_DIR"
 else
-    cd Wan2GP
-    git pull
-    cd ..
+    log "🔄 Wan2GP già presente, aggiorno..."
+    cd "$WAN_DIR" && git pull
 fi
-cd ~/Wan2GP
 
-# ----------------------------
-# Crea ambiente virtuale
-# ----------------------------
-log "📦 Creo ambiente virtuale..."
-python3.10 -m venv venv
-source venv/bin/activate
+cd "$WAN_DIR"
 
-# ----------------------------
-# Aggiorna pip/setuptools/wheel dentro venv
-# ----------------------------
-log "⬆️ Aggiorno pip, setuptools e wheel dentro venv..."
-pip install --upgrade pip setuptools wheel
+# -------------------------------------------------------------------------
+# 🔹 Esegui script ufficiale Docker con accesso rete locale
+# -------------------------------------------------------------------------
+log "🚀 Avvio Wan2GP tramite script ufficiale Docker..."
+# Rimuove eventuali container precedenti
+sudo docker rm -f wan2gp 2>/dev/null || true
 
-# ----------------------------
-# Installa PyTorch compatibile RTX 2060 (CUDA 11.7)
-# ----------------------------
-log "⬇️ Installazione PyTorch compatibile con RTX 2060 e CUDA 11.7..."
-pip install torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu117
+# Esegui script ufficiale
+# Impostiamo la porta 7860 accessibile a tutta la rete
+sudo bash run-docker-cuda-deb.sh --host 0.0.0.0 --port 7860
 
-# ----------------------------
-# Installa dipendenze Wan2GP
-# ----------------------------
-log "⬇️ Installazione dipendenze di Wan2GP..."
-pip install -r requirements.txt
-
-# ----------------------------  
-# Avvio di Wan2GP (accessibile da tutta la rete locale)  
-# ----------------------------  
-log "🚀 Avvio Wan2GP sulla porta 7860 per la rete locale..."  
-nohup python wgp.py --host 0.0.0.0 --port 7860 > ~/Wan2GP/wan2gp.log 2>&1 &  
-
-log "✅ Wan2GP avviato: http://<server>:7860"  
-
-
-# -------------------------------------------------------------------------  
-# 🔄 Servizio systemd per avvio automatico (rete locale)  
-# -------------------------------------------------------------------------  
-REAL_USER="${SUDO_USER:-$USER}"  
-REAL_HOME=$(eval echo ~"$REAL_USER")  
-
-SERVICE_PATH="/etc/systemd/system/wan2gp.service"  
-
-log "🔧 Creazione servizio systemd wan2gp.service..."  
-
-sudo bash -c "cat > ${SERVICE_PATH}" <<EOF
-[Unit]
-Description=Wan2GP Service
-After=network.target
-
-[Service]
-Type=simple
-User=${REAL_USER}
-WorkingDirectory=${REAL_HOME}/Wan2GP
-ExecStart=${REAL_HOME}/Wan2GP/venv/bin/python ${REAL_HOME}/Wan2GP/wgp.py --host 0.0.0.0 --port 7860
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-log "📌 Abilito e avvio il servizio..."  
-sudo systemctl daemon-reload  
-sudo systemctl enable wan2gp.service  
-sudo systemctl restart wan2gp.service  
-
-log "✅ Servizio Wan2GP installato e attivo sulla rete locale."
+log "✅ Wan2GP avviato. Accessibile da rete locale su http://<IP_DEL_SERVER>:7860"
+log "📌 Auto-avvio al riavvio garantito tramite Docker --restart=always"
 
 
 # -------------------------------------------------------------------------
