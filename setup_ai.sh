@@ -296,12 +296,12 @@ sudo apt install -y \
 # ----------------------------
 # Installazione pyenv
 # ----------------------------
-if [ ! -d "$HOME/.pyenv" ]; then
+if [ ! -d "$USER_HOME/.pyenv" ]; then
     log "📦 Installazione PyEnv..."
     curl https://pyenv.run | bash
 fi
 
-export PATH="$HOME/.pyenv/bin:$PATH"
+export PATH="$USER_HOME/.pyenv/bin:$PATH"
 eval "$(pyenv init -)"
 eval "$(pyenv virtualenv-init -)"
 
@@ -316,31 +316,28 @@ fi
 # ----------------------------
 # Clone Fooocus
 # ----------------------------
-cd ~
-
-if [ ! -d "Fooocus" ]; then
+if [ ! -d "$USER_HOME/Fooocus" ]; then
     log "🔽 Clono repository Fooocus..."
-    git clone https://github.com/lllyasviel/Fooocus.git
+    git clone https://github.com/lllyasviel/Fooocus.git "$USER_HOME/Fooocus"
 else
     log "🔄 Pull aggiornamenti Fooocus..."
-    cd Fooocus
+    cd "$USER_HOME/Fooocus"
     git pull
-    cd ~
 fi
 
-cd Fooocus
+cd "$USER_HOME/Fooocus"
 pyenv local 3.10.13
 
 # ----------------------------
 # venv
 # ----------------------------
-if [ ! -d "fooocus_env" ]; then
+if [ ! -d "$USER_HOME/Fooocus/fooocus_env" ]; then
     log "📦 Creo ambiente virtuale..."
-    python3 -m venv fooocus_env
+    python3 -m venv "$USER_HOME/Fooocus/fooocus_env"
 fi
 
 log "📌 Attivo venv..."
-source fooocus_env/bin/activate
+source "$USER_HOME/Fooocus/fooocus_env/bin/activate"
 
 # ----------------------------
 # Install requirements
@@ -350,21 +347,19 @@ pip install --upgrade pip wheel setuptools
 pip install -r requirements_versions.txt
 
 # ----------------------------
-# AVVIO AUTOMATICO IN BACKGROUND CON NOHUP
+# Avvio Fooocus in background con nohup
 # ----------------------------
 log "🚀 Avvio Fooocus in background sulla porta 7865..."
 
-# Entro nella directory Fooocus
-cd ~/Fooocus
-source fooocus_env/bin/activate
+# Attivo l’ambiente
+source "$USER_HOME/Fooocus/fooocus_env/bin/activate"
 
-# Avvio Fooocus in background
-nohup python entry_with_update.py --listen > ~/Fooocus/fooocus.log 2>&1 &
+nohup python entry_with_update.py --listen > "$USER_HOME/Fooocus/fooocus.log" 2>&1 &
 
 sleep 2
 
 log "🎉 Fooocus avviato in background!"
-log "📄 Log file: ~/Fooocus/fooocus.log"
+log "📄 Log file: $USER_HOME/Fooocus/fooocus.log"
 
 IP=$(hostname -I | awk '{print $1}')
 
