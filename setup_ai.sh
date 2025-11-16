@@ -1,6 +1,6 @@
 #!/bin/bash
-# sudo bash -c "$(curl -fsSL https://bit.ly/janraion_omen_ai)"
-# curl -fsSL -H "Cache-Control: no-cache" "https://raw.githubusercontent.com/Gianleo98/setup_ai_server/refs/heads/master/setup_ai.sh?$(date +%s)" | sudo bash
+# bash -c "$(curl -fsSL https://bit.ly/janraion_omen_ai)"
+# curl -fsSL -H "Cache-Control: no-cache" "https://raw.githubusercontent.com/Gianleo98/setup_ai_server/refs/heads/master/setup_ai.sh?$(date +%s)" | bash
 set -e  # Ferma lo script in caso di errore
 
 log() { echo -e "\033[1;32m$1\033[0m"; }
@@ -283,123 +283,53 @@ else
 fi
 
 
-# ----------------------------
-# Dipendenze pyenv
-# ----------------------------
-log "🔧 Verifica dipendenze PyEnv..."
-DEPENDENCIES=(
-    make build-essential libssl-dev zlib1g-dev libbz2-dev
-    libreadline-dev libsqlite3-dev curl libncursesw5-dev
-    xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev git
-)
-
-for pkg in "${DEPENDENCIES[@]}"; do
-    if dpkg -s "$pkg" &>/dev/null; then
-        log "✅ Pacchetto $pkg già installato."
-    else
-        log "⬇️ Installazione pacchetto $pkg..."
-        sudo apt install -y "$pkg"
-    fi
-done
-
-# ----------------------------
-# Installazione pyenv
-# ----------------------------
-if [ ! -d "$USER_HOME/.pyenv" ]; then
-    log "📦 Installazione PyEnv..."
-    curl https://pyenv.run | bash
-fi
-
-export PATH="$USER_HOME/.pyenv/bin:$PATH"
-eval "$(pyenv init -)"
-eval "$(pyenv virtualenv-init -)"
-
-# ----------------------------
-# Python 3.10.13
-# ----------------------------
-if ! pyenv versions | grep -q "3.10.13"; then
-    log "⬇️ Installazione Python 3.10.13..."
-    pyenv install 3.10.13
-fi
-
-# ----------------------------
-# Clone Fooocus
-# ----------------------------
-if [ ! -d "$USER_HOME/Fooocus" ]; then
+# -------------------------------------------------------------------------
+# 🔽 Clona o aggiorna repository Fooocus Docker
+# -------------------------------------------------------------------------
+FOOOCUS_DIR="$HOME/Fooocus"
+if [ ! -d "$FOOOCUS_DIR" ]; then
     log "🔽 Clono repository Fooocus..."
-    git clone https://github.com/lllyasviel/Fooocus.git
+    git clone https://github.com/lllyasviel/Fooocus.git "$FOOOCUS_DIR"
 else
-    log "🔄 Pull aggiornamenti Fooocus..."
-    cd "$USER_HOME/Fooocus"
+    log "🔄 Aggiorno repository Fooocus..."
+    cd "$FOOOCUS_DIR"
     git pull
 fi
 
-cd "$USER_HOME/Fooocus"
-
-python3 -m venv fooocus_env
-source fooocus_env/bin/activate
-pip install -r requirements_versions.txt
-
-# ----------------------------
-# Avvio Fooocus in background con nohup
-# ----------------------------
-log "🚀 Avvio Fooocus in background sulla porta 7865"
-
-nohup python entry_with_update.py --listen > "$USER_HOME/Fooocus/fooocus.log" 2>&1 &
-
-log "🎉 Fooocus avviato in background!"
-log "📄 Log file: $USER_HOME/Fooocus/fooocus.log"
+cd "$FOOOCUS_DIR"
 
 # -------------------------------------------------------------------------
-# 🔁 SERVIZIO SYSTEMD PER AVVIARE FOOOCUS AL REBOOT
+# 🏗 Costruzione immagine Docker
 # -------------------------------------------------------------------------
-log "🛠️ Creazione servizio systemd per Fooocus..."
+IMAGE_NAME="fooocus:latest"
+log "🏗 Costruzione immagine Docker Fooocus..."
+sudo docker build -t $IMAGE_NAME .
 
-# Script launcher eseguibile
-sudo bash -c "cat > /usr/local/bin/start_fooocus.sh <<EOF
-#!/bin/bash
-cd \"$USER_HOME/Fooocus\"
-source \"$USER_HOME/Fooocus/fooocus_env/bin/activate\"
-nohup python entry_with_update.py --listen > \"$USER_HOME/Fooocus/fooocus.log\" 2>&1 &
-EOF"
-
-sudo chmod +x /usr/local/bin/start_fooocus.sh
-
-# Determina l'utente reale per systemd
-if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
-  FOOOCUS_USER="$SUDO_USER"
+# -------------------------------------------------------------------------
+# 🛠 Controlla se container già in esecuzione
+# -------------------------------------------------------------------------
+if sudo docker ps -a --format '{{.Names}}' | grep -q fooocus; then
+    log "🚦 Container Fooocus già presente"
 else
-  FOOOCUS_USER=$(whoami)
+    log "🚀 Avvio Fooocus in Docker sulla porta 7865"
+    sudo docker run -d \
+        --gpus all \
+        --name fooocus \
+        -p 7865:7865 \
+        --restart unless-stopped \
+        -e CMDARGS="--listen" \
+        fooocus:latest
 fi
 
-# Servizio systemd
-sudo bash -c "cat > /etc/systemd/system/fooocus.service <<EOF
-[Unit]
-Description=Fooocus Stable Diffusion WebUI
-After=network.target
-
-[Service]
-Type=simple
-User=$FOOOCUS_USER
-WorkingDirectory=$USER_HOME/Fooocus
-ExecStart=/usr/local/bin/start_fooocus.sh
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF"
-
-# Ricarica systemd e abilita servizio
-sudo systemctl daemon-reload
-sudo systemctl enable fooocus.service
-sudo systemctl restart fooocus.service
-
-log '🎉 Servizio Fooocus installato e avviato!'
-echo '--------------------------------------------------------'
-echo "Fooocus sarà avviato automaticamente a ogni reboot."
-echo "👉 URL: http://$(hostname -I | awk '{print $1}'):7865"
-echo '--------------------------------------------------------'
+# -------------------------------------------------------------------------
+# 📄 Log e info
+# -------------------------------------------------------------------------
+log "🎉 Fooocus avviato in background!"
+IP=$(hostname -I | awk '{print $1}')
+echo "-----------------------------------------------------"
+echo "Fooocus disponibile su:"
+echo "👉 http://$IP:7865"
+echo "-----------------------------------------------------"
 
 
 # -------------------------------------------------------------------------
