@@ -286,7 +286,7 @@ fi
 # ----------------------------
 # Dipendenze pyenv
 # ----------------------------
-llog "🔧 Verifica dipendenze PyEnv..."
+log "🔧 Verifica dipendenze PyEnv..."
 DEPENDENCIES=(
     make build-essential libssl-dev zlib1g-dev libbz2-dev
     libreadline-dev libsqlite3-dev curl libncursesw5-dev
