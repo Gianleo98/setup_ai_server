@@ -487,42 +487,28 @@ fi
 # 🔧 FIX DOCKER + NVIDIA GPU (Ubuntu/Debian)
 # ===============================================
 
-echo "➡️ 1. Rimuovo configurazioni NVIDIA Docker danneggiate..."
-sudo apt remove -y nvidia-docker2 nvidia-container-toolkit &>/dev/null
-sudo rm -f /etc/docker/daemon.json
-echo "✅ Configurazioni rimosse."
+log "🔹 Aggiungo repository NVIDIA Container Toolkit..."
+sudo apt-get update
+sudo apt-get install -y --no-install-recommends curl gnupg2
 
-echo "➡️ 2. NVIDIA Container Toolkit..."
-sudo apt update
-sudo apt install -y nvidia-container-toolkit
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | \
+  sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
 
-echo "➡️ 3. Configuro Docker per usare NVIDIA come runtime..."
+curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+  sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+  sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+log "🔄 Aggiorno pacchetti..."
+sudo apt-get update
+
+log "🛠️ Installo NVIDIA Container Toolkit..."
+sudo apt-get install -y nvidia-container-toolkit
+
+log "⚙️ Configuro Docker per usare runtime NVIDIA..."
 sudo nvidia-ctk runtime configure --runtime=docker
 
-echo "➡️ 4. Riavvio Docker..."
+log "🔄 Riavvio Docker..."
 sudo systemctl restart docker
-
-echo "➡️ 5. Test GPU dentro Docker..."
-sudo docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
-
-STATUS=$?
-
-if [ $STATUS -eq 0 ]; then
-    echo "==============================================="
-    echo "🎉 GPU FUNZIONANTE DENTRO DOCKER!"
-    echo "Puoi ora usare Wan2GP con Docker senza problemi."
-    echo "==============================================="
-else
-    echo "==============================================="
-    echo "❌ LA GPU NON È ANCORA DISPONIBILE IN DOCKER."
-    echo " Inviami l'output dei seguenti comandi:"
-    echo ""
-    echo "  which nvidia-smi"
-    echo "  cat /etc/docker/daemon.json"
-    echo "  ls -l /dev/nvidia*"
-    echo "  docker info | grep -i runtime"
-    echo "==============================================="
-fi
 
 # -------------------------------------------------------------------------
 # 🐋 Clona Wan2GP e avvia script ufficiale Docker
