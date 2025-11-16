@@ -284,51 +284,95 @@ fi
 
 
 # -------------------------------------------------------------------------
-# 🔽 Clona o aggiorna repository Fooocus Docker
+# Nome container, immagine e porte
 # -------------------------------------------------------------------------
-FOOOCUS_DIR="$HOME/Fooocus"
-if [ ! -d "$FOOOCUS_DIR" ]; then
-    log "🔽 Clono repository Fooocus..."
-    git clone https://github.com/lllyasviel/Fooocus.git "$FOOOCUS_DIR"
-else
-    log "🔄 Aggiorno repository Fooocus..."
-    cd "$FOOOCUS_DIR"
-    git pull
-fi
-
-cd "$FOOOCUS_DIR"
+CONTAINER_NAME="fooocus_gpu"
+IMAGE_NAME="ghcr.io/lllyasviel/fooocus:latest"
+HOST_PORT=7865
+CONTAINER_PORT=7865
+DATA_VOLUME="fooocus-data"
 
 # -------------------------------------------------------------------------
-# 🏗 Costruzione immagine Docker
+# Rimuove container esistente se presente
 # -------------------------------------------------------------------------
-IMAGE_NAME="fooocus:latest"
-log "🏗 Costruzione immagine Docker Fooocus..."
-sudo docker build -t $IMAGE_NAME .
-
-# -------------------------------------------------------------------------
-# 🛠 Controlla se container già in esecuzione
-# -------------------------------------------------------------------------
-if sudo docker ps -a --format '{{.Names}}' | grep -q fooocus; then
-    log "🚦 Container Fooocus già presente"
-else
-    log "🚀 Avvio Fooocus in Docker sulla porta 7865"
-    sudo docker run -d \
-        --gpus all \
-        --name fooocus \
-        -p 7865:7865 \
-        --restart unless-stopped \
-        -e CMDARGS="--listen" \
-        fooocus:latest
+if sudo docker ps -a --format '{{.Names}}' | grep -q $CONTAINER_NAME; then
+    log "🚦 Container $CONTAINER_NAME già presente, lo rimuovo..."
+    sudo docker rm -f $CONTAINER_NAME
 fi
 
 # -------------------------------------------------------------------------
-# 📄 Log e info
+# Avvio container con GPU, porte, volume dati e restart policy always
 # -------------------------------------------------------------------------
-log "🎉 Fooocus avviato in background!"
+log "🚀 Avvio $CONTAINER_NAME in Docker sulla porta $HOST_PORT..."
+sudo docker run -d \
+    --gpus all \
+    --name $CONTAINER_NAME \
+    --restart always \
+    -p $HOST_PORT:$CONTAINER_PORT \
+    -v $DATA_VOLUME:/content/data \
+    -e CMDARGS="--listen" \
+    -e DATADIR=/content/data \
+    -e config_path=/content/data/config.txt \
+    -e config_example_path=/content/data/config_modification_tutorial.txt \
+    -e path_checkpoints=/content/data/models/checkpoints/ \
+    -e path_loras=/content/data/models/loras/ \
+    -e path_embeddings=/content/data/models/embeddings/ \
+    -e path_vae_approx=/content/data/models/vae_approx/ \
+    -e path_upscale_models=/content/data/models/upscale_models/ \
+    -e path_inpaint=/content/data/models/inpaint/ \
+    -e path_controlnet=/content/data/models/controlnet/ \
+    -e path_clip_vision=/content/data/models/clip_vision/ \
+    -e path_fooocus_expansion=/content/data/models/prompt_expansion/fooocus_expansion/ \
+    -e path_outputs=/content/app/outputs/ \
+    $IMAGE_NAME
+
+# -------------------------------------------------------------------------
+# Mostra informazioni accesso
+# -------------------------------------------------------------------------
 IP=$(hostname -I | awk '{print $1}')
+log "🎉 $CONTAINER_NAME avviato in background!"
 echo "-----------------------------------------------------"
 echo "Fooocus disponibile su:"
-echo "👉 http://$IP:7865"
+echo "👉 http://$IP:$HOST_PORT"
+echo "-----------------------------------------------------"
+
+# -------------------------------------------------------------------------
+# Nome container e immagine
+# -------------------------------------------------------------------------
+CONTAINER_NAME="kokoro_fastapi_gpu"
+IMAGE_NAME="ghcr.io/remsky/kokoro-fastapi-gpu:latest"
+HOST_PORT=8880
+CONTAINER_PORT=8880
+
+# -------------------------------------------------------------------------
+# Rimuovi container esistente se presente
+# -------------------------------------------------------------------------
+if sudo docker ps -a --format '{{.Names}}' | grep -q "^$CONTAINER_NAME\$"; then
+    log "🚦 Container $CONTAINER_NAME già presente, lo rimuovo..."
+    sudo docker rm -f $CONTAINER_NAME
+fi
+
+# -------------------------------------------------------------------------
+# Avvio container con GPU
+# -------------------------------------------------------------------------
+log "🚀 Avvio container $CONTAINER_NAME sulla porta $HOST_PORT con tutte le GPU..."
+sudo docker run -d \
+    --gpus all \
+    --name $CONTAINER_NAME \
+    -p $HOST_PORT:$CONTAINER_PORT \
+    --restart always \
+    $IMAGE_NAME
+
+sleep 2
+
+# -------------------------------------------------------------------------
+# Informazioni accesso
+# -------------------------------------------------------------------------
+IP=$(hostname -I | awk '{print $1}')
+log "🎉 Container Kokoro FastAPI GPU avviato!"
+echo "-----------------------------------------------------"
+echo "👉 Accedi all'API o UI Kokoro FastAPI GPU:"
+echo "http://$IP:$HOST_PORT"
 echo "-----------------------------------------------------"
 
 
