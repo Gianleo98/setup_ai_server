@@ -647,7 +647,6 @@ source venv/bin/activate
 # Aggiorna pip e installa dipendenze
 log "⬆️ Aggiorno pip e installo dipendenze Pinokio..."
 pip install --upgrade pip setuptools wheel
-pip install -r requirements.txt
 
 # Avvio Pinokio in modalità server headless su tutta la rete locale
 if ! pgrep -f "python run.py" &>/dev/null; then
