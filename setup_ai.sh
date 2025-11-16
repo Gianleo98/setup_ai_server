@@ -395,9 +395,6 @@ fi
 # -------------------------------------------------------------------------
 # 🛠️ Installazione Wan2GP
 # -------------------------------------------------------------------------
-# ----------------------------
-# Installa Python 3.10 e strumenti base
-# ----------------------------
 log "🔹 Aggiungo PPA deadsnakes e installo Python 3.10..."
 sudo apt update
 sudo apt install -y software-properties-common
@@ -444,47 +441,48 @@ pip install torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 --index-url https
 log "⬇️ Installazione dipendenze di Wan2GP..."
 pip install -r requirements.txt
 
-# ----------------------------
-# Avvio di Wan2GP
-# ----------------------------
-log "🚀 Avvio Wan2GP sulla porta di default..."
-nohup python wgp.py > ~/Wan2GP/wan2gp.log 2>&1 &
+# ----------------------------  
+# Avvio di Wan2GP (accessibile da tutta la rete locale)  
+# ----------------------------  
+log "🚀 Avvio Wan2GP sulla porta 7860 per la rete locale..."  
+nohup python wgp.py --host 0.0.0.0 --port 7860 > ~/Wan2GP/wan2gp.log 2>&1 &  
 
-log "✅ Wan2GP avviato: http://<server>:7860"
+log "✅ Wan2GP avviato: http://<server>:7860"  
 
-# # -------------------------------------------------------------------------
-# # 🔄 Servizio systemd per avvio automatico
-# # -------------------------------------------------------------------------
-# REAL_USER="${SUDO_USER:-$USER}"
-# REAL_HOME=$(eval echo ~"$REAL_USER")
 
-# SERVICE_PATH="/etc/systemd/system/wan2gp.service"
+# -------------------------------------------------------------------------  
+# 🔄 Servizio systemd per avvio automatico (rete locale)  
+# -------------------------------------------------------------------------  
+REAL_USER="${SUDO_USER:-$USER}"  
+REAL_HOME=$(eval echo ~"$REAL_USER")  
 
-# log "🔧 Creazione servizio systemd wan2gp.service..."
+SERVICE_PATH="/etc/systemd/system/wan2gp.service"  
 
-# sudo bash -c "cat > ${SERVICE_PATH}" <<EOF
-# [Unit]
-# Description=Wan2GP Service
-# After=network.target
+log "🔧 Creazione servizio systemd wan2gp.service..."  
 
-# [Service]
-# Type=simple
-# User=${REAL_USER}
-# WorkingDirectory=${REAL_HOME}/Wan2GP
-# ExecStart=${REAL_HOME}/Wan2GP/venv/bin/python ${REAL_HOME}/Wan2GP/wgp.py --host 0.0.0.0 --port 9000
-# Restart=always
-# RestartSec=5
+sudo bash -c "cat > ${SERVICE_PATH}" <<EOF
+[Unit]
+Description=Wan2GP Service
+After=network.target
 
-# [Install]
-# WantedBy=multi-user.target
-# EOF
+[Service]
+Type=simple
+User=${REAL_USER}
+WorkingDirectory=${REAL_HOME}/Wan2GP
+ExecStart=${REAL_HOME}/Wan2GP/venv/bin/python ${REAL_HOME}/Wan2GP/wgp.py --host 0.0.0.0 --port 7860
+Restart=always
+RestartSec=5
 
-# log "📌 Abilito e avvio il servizio..."
-# sudo systemctl daemon-reload
-# sudo systemctl enable wan2gp.service
-# sudo systemctl restart wan2gp.service
+[Install]
+WantedBy=multi-user.target
+EOF
 
-# log "✅ Servizio Wan2GP installato e attivo."
+log "📌 Abilito e avvio il servizio..."  
+sudo systemctl daemon-reload  
+sudo systemctl enable wan2gp.service  
+sudo systemctl restart wan2gp.service  
+
+log "✅ Servizio Wan2GP installato e attivo sulla rete locale."
 
 
 # -------------------------------------------------------------------------
