@@ -286,30 +286,21 @@ fi
 # ----------------------------
 # Dipendenze pyenv
 # ----------------------------
-log "🔧 Verifica dipendenze per PyEnv..."
-
-PYENV_DEPS=(
+llog "🔧 Verifica dipendenze PyEnv..."
+DEPENDENCIES=(
     make build-essential libssl-dev zlib1g-dev libbz2-dev
     libreadline-dev libsqlite3-dev curl libncursesw5-dev
-    xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev
-    liblzma-dev git
+    xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev git
 )
 
-MISSING=()
-
-for pkg in "${PYENV_DEPS[@]}"; do
-    if ! dpkg -s "$pkg" &>/dev/null; then
-        MISSING+=("$pkg")
+for pkg in "${DEPENDENCIES[@]}"; do
+    if dpkg -s "$pkg" &>/dev/null; then
+        log "✅ Pacchetto $pkg già installato."
+    else
+        log "⬇️ Installazione pacchetto $pkg..."
+        sudo apt install -y "$pkg"
     fi
 done
-
-if [ ${#MISSING[@]} -eq 0 ]; then
-    log "✅ Tutte le dipendenze PyEnv già installate."
-else
-    log "📦 Installazione dipendenze mancanti: ${MISSING[*]}"
-    sudo apt update
-    sudo apt install -y "${MISSING[@]}"
-fi
 
 # ----------------------------
 # Installazione pyenv
