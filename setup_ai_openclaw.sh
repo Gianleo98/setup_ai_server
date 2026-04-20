@@ -9,17 +9,17 @@ log() { echo -e "\033[1;32m$1\033[0m"; }
 STATIC_IP="192.168.1.70"
 GATEWAY="192.168.1.1"
 DNS="8.8.8.8 1.1.1.1"
-INTERFACE="ens160"                    # ← Cambia se necessario (controlla con: ip -brief link)
+INTERFACE="ens160"                    # ← Cambia se necessario (ip -brief link)
 
 # Porte
 PORT_COMFYUI=8188
 PORT_KOKORO=8880
+PORT_MUSICGEN=8881
 
 # -------------------------------------------------------------------------
 # IP STATICO
 # -------------------------------------------------------------------------
 log "🌐 Configurazione IP statico $STATIC_IP..."
-
 sudo bash -c "cat > /etc/netplan/01-netcfg.yaml <<EOF
 network:
   version: 2
@@ -37,11 +37,17 @@ sudo netplan generate && sudo netplan apply
 log "✅ IP statico configurato"
 
 # -------------------------------------------------------------------------
-# AGGIORNAMENTO SISTEMA + DIPENDENZE
+# AGGIORNAMENTO + DIPENDENZE
 # -------------------------------------------------------------------------
 log "🚀 Aggiornamento sistema..."
 sudo apt update -y && sudo apt upgrade -y
-sudo apt install -y curl git net-tools
+
+log "📦 Installazione pacchetti necessari..."
+sudo apt install -y curl git net-tools ffmpeg yt-dlp mediainfo \
+                    python3-pip python3-venv build-essential \
+                    chromium-browser chromium-chromedriver
+
+log "✅ FFmpeg installato: $(ffmpeg -version | head -n 1)"
 
 # -------------------------------------------------------------------------
 # NVIDIA + CUDA + SSH + NO SLEEP
@@ -84,9 +90,9 @@ sleep 5
 ollama pull qwen3.5:9b-q4_K_M
 
 # -------------------------------------------------------------------------
-# DOCKER
+# DOCKER + CONTAINER
 # -------------------------------------------------------------------------
-log "🐋 Docker..."
+log "🐋 Installazione Docker..."
 if ! command -v docker &>/dev/null; then
   sudo apt install -y ca-certificates curl gnupg lsb-release
   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
@@ -96,13 +102,9 @@ if ! command -v docker &>/dev/null; then
   sudo usermod -aG docker ${SUDO_USER:-$USER}
 fi
 
-# -------------------------------------------------------------------------
-# CONTAINER: ComfyUI (volatile) + Kokoro TTS (volatile)
-# -------------------------------------------------------------------------
-
-# ComfyUI - senza volumi persistenti per output (solo modelli se vuoi, ma qui li rendiamo temporanei)
+# ComfyUI (volatile)
 sudo docker rm -f comfyui-gpu 2>/dev/null || true
-log "🚀 Avvio ComfyUI (output volatile)..."
+log "🚀 Avvio ComfyUI..."
 sudo docker run -d \
   --gpus all \
   --name comfyui-gpu \
@@ -110,9 +112,9 @@ sudo docker run -d \
   -p $PORT_COMFYUI:8188 \
   ghcr.io/ai-dock/comfyui:latest-cuda
 
-# Kokoro TTS - volatile (nessun volume)
+# Kokoro TTS (volatile)
 sudo docker rm -f kokoro-fastapi-gpu 2>/dev/null || true
-log "🚀 Avvio Kokoro TTS (output volatile)..."
+log "🚀 Avvio Kokoro TTS..."
 sudo docker run -d \
   --gpus all \
   --name kokoro-fastapi-gpu \
@@ -120,35 +122,92 @@ sudo docker run -d \
   -p $PORT_KOKORO:8880 \
   ghcr.io/remsky/kokoro-fastapi-gpu:latest
 
+# MusicGen (generazione musica locale)
+sudo docker rm -f musicgen-fastapi 2>/dev/null || true
+log "🎵 Avvio MusicGen (musica locale illimitata)..."
+sudo docker run -d \
+  --gpus all \
+  --name musicgen-fastapi \
+  --restart always \
+  -p $PORT_MUSICGEN:8881 \
+  peytontolbert/musicgen-fastapi:latest
+
 # -------------------------------------------------------------------------
-# OPENCLAW + CONFIGURAZIONE
+# OPENCLAW + SKILLS
 # -------------------------------------------------------------------------
-log "🦾 Installazione e configurazione OpenClaw..."
+log "🦾 Installazione OpenClaw..."
 if ! command -v openclaw &>/dev/null; then
   ollama launch openclaw --model qwen3.5:9b-q4_K_M --non-interactive --accept-risk
 fi
 
-log "🔗 Collegamento tool a OpenClaw..."
+log "🔗 Installazione skill necessarie..."
 openclaw skills install comfyui
+openclaw skills install kokoro-tts
+openclaw skills install video-editor-ai      # editing video con effetti + musica
+openclaw skills install yt-dlp-downloader
+openclaw skills install playwright-mcp
+openclaw skills install musicgen-api         # per generare musica con MusicGen
+
+log "⚙️ Configurazione tool..."
 openclaw config set tools.image.provider comfyui
 openclaw config set tools.image.comfyui.baseUrl "http://127.0.0.1:8188"
 
-openclaw skills install kokoro-tts
 openclaw config set tools.tts.provider kokoro
 openclaw config set tools.tts.kokoro.baseUrl "http://127.0.0.1:8880"
 
-log "🎉 Setup completato!"
+openclaw config set tools.music.provider musicgen
+openclaw config set tools.music.musicgen.baseUrl "http://127.0.0.1:8881"
+
+# Creazione cartella per musica di sottofondo
+mkdir -p ~/music/background
+log "📁 Cartella musica creata: ~/music/background"
+
+# -------------------------------------------------------------------------
+# AVVIO AUTOMATICO OPENCLAW
+# -------------------------------------------------------------------------
+log "🔄 Configurazione avvio automatico OpenClaw..."
+sudo tee /etc/systemd/system/openclaw-gateway.service > /dev/null <<EOF
+[Unit]
+Description=OpenClaw Gateway Service
+After=network-online.target docker.service ollama.service
+Wants=network-online.target docker.service ollama.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/.openclaw
+ExecStart=/usr/bin/openclaw gateway --force
+Restart=always
+RestartSec=5
+Environment="OLLAMA_HOST=http://127.0.0.1:11434"
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now openclaw-gateway.service
+
+log "✅ OpenClaw avviato automaticamente"
 
 # -------------------------------------------------------------------------
 # INFO FINALI
 # -------------------------------------------------------------------------
 echo "-----------------------------------------------------"
 echo "IP del server:          $STATIC_IP"
-echo "ComfyUI (Immagini)  →  http://$STATIC_IP:$PORT_COMFYUI"
-echo "Kokoro TTS          →  http://$STATIC_IP:$PORT_KOKORO"
-echo "OpenClaw            →  http://$STATIC_IP:3000"
+echo "ComfyUI                 → http://$STATIC_IP:$PORT_COMFYUI"
+echo "Kokoro TTS              → http://$STATIC_IP:$PORT_KOKORO"
+echo "MusicGen (Musica)       → http://$STATIC_IP:$PORT_MUSICGEN"
+echo "OpenClaw                → http://$STATIC_IP:3000"
+echo ""
+echo "Funzionalità attive:"
+echo "• Editing video con effetti speciali e musica (video-editor-ai)"
+• Generazione musica locale illimitata (MusicGen)
+• Navigazione web + download video
+• Immagini con ComfyUI
+• Voice-over con Kokoro
+• Avvio automatico di OpenClaw
 echo "-----------------------------------------------------"
-echo "Nota importante:"
-echo "- Solo la workspace di OpenClaw è persistente"
-echo "- Immagini e audio generati sono volatili (si perdono al riavvio del container)"
+echo "Cartella per la tua musica: ~/music/background"
+echo "Puoi mettere lì i file MP3 da usare come sottofondo."
 echo "-----------------------------------------------------"
