@@ -1,3 +1,5 @@
+# HP Omen 15-ek0013nl: Intel Core i7-10750H, 16 GB RAM, 512 GB SSD, RTX 2060 6 GB, display 15,6" FHD 144 Hz.
+
 #!/bin/bash
 set -e  # Ferma lo script in caso di errore
 
